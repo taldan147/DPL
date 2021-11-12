@@ -18,17 +18,24 @@ def soft_max_regression(X, W, C):
     sum=0
     for i in range(len(X)):
         tmp = calc_divider(X, W)
-        sum += C[i].transpose() @ (np.log(np.exp(np.ndarray.transpose(X) @ W[i]) / tmp))
+        sum += C[i] @ (np.log(np.exp((np.ndarray.transpose(X) @ W[i]) - get_max_Xtw_entry(X, W)) / tmp))
     return sum / len(X)
 
 def calc_divider(X, W):
     sum=np.zeros(len(X[0]))
     for i in range(len(W)):
-        sum += np.exp(np.ndarray.transpose(X) @ W[i])
+        sum += np.exp((np.ndarray.transpose(X) @ W[i]) - get_max_Xtw_entry(X,W))
     return sum
 
 def soft_max_gradient(X, W, C, p):
-    return (1/len(X)) * (X @ (np.exp(X.transpose() @ W[p]) / calc_divider(X, W) - C[p]))
+    return (1/len(X)) * (X @ (np.exp((X.transpose() @ W[p]) - get_max_Xtw_entry(X, W)) / calc_divider(X, W) - C[p]))
+
+def get_max_Xtw_entry(X,W):
+    n = np.zeros(len(X))
+    for i in range(len(X)):
+        for j in range(len(W)):
+            n[i] = max(n[i], LA.norm(X[:,i] @ W[j]))
+    return n
 
 
 def SGD(objective,grad_obj, max_iter, X, y, w):
@@ -90,7 +97,7 @@ def plot_graphs(grads_norms):
     plt.show()
 
 # test_SGD_with_LS_example()
-# test_SGD_LS_2()
+test_SGD_LS_2()
 
 # a = np.zeros((5,10),int)
 # x = [1,2,3,4,5]
@@ -117,7 +124,7 @@ def test_grad(X,C,W , epsilon, d, maxIter):
         f = soft_max_regression(X, W , C)
         grad_with = calc_grad_matrix(X, W, C)
         loss.append(abs(f_eps-f))
-        loss_with_grad.append(abs(f_eps-f-(epsilon*(1/len(W)) * np.ndarray.flatten(d) @ np.ndarray.flatten(grad_with))))
+        loss_with_grad.append(abs(f_eps-f-(epsilon * np.ndarray.flatten(d) @ np.ndarray.flatten(grad_with))))
         epsilon *=0.5
         # if len(loss) >1:
         #     DF.append(loss[i-1] / loss[i])
@@ -127,10 +134,14 @@ def test_grad(X,C,W , epsilon, d, maxIter):
 
 
 def plot_grad_test():
-    X = yt
-    c = Ct
-    w = np.random.rand(20000,2)
-    d = np.random.rand(20000,2)
+    # X = yt
+    # c = Ct
+    # w = np.random.rand(20000,2)
+    # d = np.random.rand(20000,2)
+    X = np.random.rand(10,20)
+    c = np.random.rand(15,10)
+    w = np.random.rand(15,10)
+    d = np.random.rand(15,10)
     loss, loss_with_grad, epsilons = test_grad(X, c, w, 0.5, d, 20)
     plt.figure();
     plt.semilogy(epsilons, loss, label="gradient test : loss");
@@ -140,6 +151,6 @@ def plot_grad_test():
     plt.legend();
     plt.show()
 
-plot_grad_test()
+# plot_grad_test()
 
 
