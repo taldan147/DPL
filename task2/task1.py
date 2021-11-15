@@ -151,6 +151,6 @@ def plot_grad_test():
     plt.legend();
     plt.show()
 
-# plot_grad_test()
+plot_grad_test()
 
 
