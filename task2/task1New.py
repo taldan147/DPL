@@ -21,7 +21,7 @@ def soft_max_regression(X,C, W):
     eta = calculate_eta_vector(X, W)
     f = 0
     for i in range(len(W[0])):
-        f += C[:, i] @ (np.log(np.exp((X.transpose() @ W[:,i]) - eta) / calculate_divider(X, W)))
+        f += C[i] @ (np.log(np.exp((X.transpose() @ W[:,i]) - eta) / calculate_divider(X, W)))
     return (-1/m) * f
 
 
@@ -58,18 +58,18 @@ def calculate_eta_vector(X, W):
 def grad_soft_max(X,W,C):
     gradW = []
     for i in range(len(W[0])):
-        Wp = (1/len(X[0])) * (X @ ((np.exp((X.transpose() @ W[:,i]) - calculate_eta_vector(X, W)) / calculate_divider(X, W)) - C[:, i]))
+        Wp = (1/len(X[0])) * (X @ ((np.exp((X.T @ W[:,i]) - calculate_eta_vector(X, W)) / calculate_divider(X, W)) - C[i]))
         gradW.append(Wp)
     return np.asarray(gradW).transpose()
 
 
 def grad_test():
-    # X = yt
-    # C = Ct
-    X = np.random.rand(10, 20)
-    C = np.random.rand(20, 15)
-    W = np.random.rand(10,15)
-    D = np.random.rand(10,15)
+    X = yt
+    C = Ct
+    # X = np.random.rand(10, 20)
+    # C = np.random.rand(20, 15)
+    W = np.random.rand(2,2)
+    D = np.random.rand(2,2)
     D = (1/LA.norm(D)) * D
     soft_max_loss = []
     grad_soft_max_loss = []
