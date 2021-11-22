@@ -5,9 +5,9 @@ import math
 import random
 import scipy.io as sio
 
-GMM = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\GMMData.mat')
-Peaks = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\PeaksData.mat')
-SwissRoll = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\SwissRollData.mat')
+GMM = sio.loadmat('/Users/itamarkedem-student/Desktop/Programming/DPL/task2/GMMData.mat')
+Peaks = sio.loadmat('/Users/itamarkedem-student/Desktop/Programming/DPL/task2/PeaksData.mat')
+SwissRoll = sio.loadmat('/Users/itamarkedem-student/Desktop/Programming/DPL/task2/SwissRollData.mat')
 
 Ct = Peaks["Ct"]
 Cv = Peaks["Cv"]
@@ -22,12 +22,12 @@ def soft_max(X,W, b):
 
 def soft_max_regression(X,C, W, b):
     m = len(X[0])
-    f = np.sum(C.T * np.log(soft_max(X,W, b).T))
+    f = np.sum(C.T * np.log(soft_max(X,W, b)))
     return (-1/m) * f
 
 def grad_soft_max(X,W,C, b):
     m = len(X[0])
-    grad = X @ (soft_max(X,W, b).T - C.T)
+    grad = X @ (soft_max(X,W, b).T - C)
     return 1/m * grad
 
 def grad_soft_max_b(X,W,C, b):
@@ -177,10 +177,10 @@ def derive_by_b(X, W, b, v):
 
 def derive_by_W(X, W, b, v):
     by_b = derive_by_b(X, W, b, v)
-    return by_b @ X
+    return by_b @ X.T
 
 def grad_soft_max_by_X(X,W,C):
-    return (1/len(X[0])) * W @ (np.exp(W.T@X) / np.sum(W.T @ X, axis=0) - C)
+    return (1/len(X[0])) * W @ (np.exp(W.T@X) / np.sum(W.T @ X, axis=0) - C.T)
 
 def back_propagation(keeper_X, W, B, l, C):
     grad = [grad_soft_max(keeper_X[l-1], W[l-1], C, B[l-1])]
@@ -188,10 +188,10 @@ def back_propagation(keeper_X, W, B, l, C):
     for i in range(l-2, -1, -1):
         dw = derive_by_W(keeper_X[i], W[i], B[i], deriv_by_x)
         db = derive_by_b(keeper_X[i], W[i], B[i], deriv_by_x)
-        curr_deriv_by_theta = np.append(dw, np.reshape(db, (len(db),1)), axis=1)
+        curr_deriv_by_theta = np.append(dw, db, axis=1)
         grad.append(curr_deriv_by_theta)
         deriv_by_x = derive_by_X(keeper_X[i], W[i], B[i], deriv_by_x)
-    return np.asarray(grad)
+    return (grad)
 
 
 def tanh_derivative(X):
@@ -235,8 +235,8 @@ def test_jacobian():
 # test_jacobian()
 
 def test_grad_whole_network():
-    X = yt
-    C = Ct
+    X = yt[:,0].reshape(2, 1)
+    C = Ct[:,0].reshape(1, 5)
     # X = np.random.rand(10, 20)
     # C = np.random.rand(20, 15)
     W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(3,5)]
@@ -249,10 +249,13 @@ def test_grad_whole_network():
     epsilon = 1
     func_result, keeper_X = forward_pass(np.tanh, X, W, b, len(W), C)
     grad = back_propagation(keeper_X, W,b, len(W), C)
+    flat_d = np.asarray([*d_W[2].T, *np.append(d_W[1], d_B[1].reshape(3, 1), axis=1).T, *np.append(d_W[0], d_B[0].reshape(3, 1), axis=1).T]).flatten()
+    flat_grad = np.asarray([*grad[0].T, *grad[1].T, *grad[2].T]).flatten()
     for i in range(20):
-        func_with_epsilon = forward_pass(np.tanh, X, W+epsilon*d_W[0], b, len(W), C)
+        new_W = [(W[0]+epsilon*d_W[0]), W[1], W[2]]
+        func_with_epsilon, notIntresting = forward_pass(np.tanh, X, new_W, b, len(W), C)
         soft_max_loss.append(abs(func_with_epsilon - func_result))
-        grad_soft_max_loss.append(abs(func_with_epsilon - func_result - (epsilon * (d_W[0] @ grad))))
+        grad_soft_max_loss.append(abs(func_with_epsilon - func_result - (epsilon * (flat_d @ flat_grad))))
         epsilon *= 0.5
 
     plt.figure()
