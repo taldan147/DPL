@@ -9,48 +9,30 @@ GMM = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\GMMData.mat')
 Peaks = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\PeaksData.mat')
 SwissRoll = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\SwissRollData.mat')
 
-Ct = SwissRoll["Ct"]
-Cv = SwissRoll["Cv"]
-yt = SwissRoll["Yt"]
-yv = SwissRoll["Yv"]
+Ct = Peaks["Ct"]
+Cv = Peaks["Cv"]
+yt = Peaks["Yt"]
+yv = Peaks["Yv"]
 
 
 
-def soft_max(X,W):
-    eta = calculate_eta_vector(X,W)
-    return np.exp((X.T @ W).T - eta) / np.sum(np.exp((X.T @ W).T - eta).T, axis=1)
+def soft_max(X,W, b):
+    eta = calculate_eta_vector(X,W,b)
+    return (np.exp(((X.T @ W).T - eta).T + b).T / np.sum(np.exp(((X.T @ W).T - eta).T + b), axis=1))
 
-def soft_max_regression(X,C, W):
+def soft_max_regression(X,C, W, b):
     m = len(X[0])
-    # eta = calculate_eta_vector(X, W)
-    # f = 0
-    # for i in range(len(W[0])):
-    #     f += C[i] @ (np.log(np.exp((X.transpose() @ W[:,i]) - eta) / calculate_divider(X, W)))
-    # return (-1/m) * f
-    f = np.sum(C * np.log(soft_max(X,W)))
+    f = np.sum(C.T * np.log(soft_max(X,W, b).T))
     return (-1/m) * f
 
-def grad_soft_max(X,W,C):
+def grad_soft_max(X,W,C, b):
     m = len(X[0])
-    grad = X @ (soft_max(X,W).T - C.T)
+    grad = X @ (soft_max(X,W, b).T - C.T)
     return 1/m * grad
-    # gradW = []
-    # for i in range(len(W[0])):
-    #     Wp = (1/len(X[0])) * (X @ ((np.exp((X.T @ W[:,i]) - calculate_eta_vector(X, W)) / calculate_divider(X, W)) - C[i]))
-    #     gradW.append(Wp)
-    # return np.asarray(gradW).transpose()
 
-def grad_soft_max_b(X,W,C):
+def grad_soft_max_b(X,W,C, b):
     m = len(X[0])
-    return 1/m * soft_max(X,W).T - C.T
-
-def calculate_divider(X,W):
-    sum = np.zeros(len(X[0]))
-    eta = calculate_eta_vector(X, W)
-    for i in range(len(W[0])):
-        sum += np.exp((X.transpose() @ W[:,i]) - eta)
-    return sum
-
+    return 1/m * np.sum(soft_max(X,W, b) - C, axis=1)
 
 # def calculate_divider(X,W):
 #     return np.ndarray.sum(np.exp((X.transpose() @ W) - calculate_neu(X,W)), axis=1)
@@ -63,8 +45,8 @@ def calculate_divider(X,W):
 #             neu[i] = max(neu[i], X[:,i] @ W[:,j])
 #     return np.repeat(neu[:,np.newaxis], len(W[0]), 1)
 
-def calculate_eta_vector(X, W):
-    return np.max(X.transpose() @ W, axis=1)
+def calculate_eta_vector(X, W,b):
+    return np.max(X.transpose() @ W + b, axis=1)
 
 # def grad_soft_max(X,W,C):
 #     gradW = []
@@ -84,17 +66,21 @@ def grad_test():
     n = len(X)
     l = len(C)
     W = np.random.rand(n, l)
-    D = np.random.rand(n, l)
-    D = (1/LA.norm(D)) * D
+    b = np.random.rand(l)
+    # D = np.random.rand(n, l)
+    D = np.random.rand(l)
     soft_max_loss = []
     grad_soft_max_loss = []
     epsilon = 1
-    func_result = soft_max_regression(X, C, W)
-    grad = grad_soft_max(X, W, C)
+    func_result = soft_max_regression(X, C, W, b)
+    grad = grad_soft_max_b(X, W, C, b)
+    # grad = grad_soft_max(X, W, C, b)
     for i in range(20):
-        func_with_epsilon = soft_max_regression(X,C,W + (epsilon*D))
+        func_with_epsilon = soft_max_regression(X,C,W, b+(epsilon*D))
+        # func_with_epsilon = soft_max_regression(X,C,W + (epsilon*D), b)
         soft_max_loss.append(abs(func_with_epsilon - func_result))
-        grad_soft_max_loss.append(abs(func_with_epsilon-func_result-(epsilon*(np.ndarray.flatten(D,'F') @ np.ndarray.flatten(grad,'F')))))
+        grad_soft_max_loss.append(abs(func_with_epsilon-func_result-(epsilon*(D @ grad))))
+        # grad_soft_max_loss.append(abs(func_with_epsilon-func_result-(epsilon*(np.ndarray.flatten(D,'F') @ np.ndarray.flatten(grad,'F')))))
         epsilon *= 0.5
 
     plt.figure()
@@ -111,12 +97,12 @@ def grad_test():
 
 # -------------------------------------------------------task 2.1.3------------------------------------------------
 
-def SGD(grad, X, w, c, epoch):
+def SGD(grad, X, w, c, epoch, b):
     # norms = []
     lr = 1
     batch = 2000
     # success_percentages = [soft_max_regression(X,c,w)]
-    success_percentages = [calculate_success(X,w,c)]
+    success_percentages = [calculate_success(X,w,c, b)]
     for i in range(epoch):
         perm = np.random.permutation(len(X[0]))
         lr = 1/(math.sqrt(1+i))
@@ -130,7 +116,7 @@ def SGD(grad, X, w, c, epoch):
             w = w-lr*gradK
         # norms.append(LA.norm((1/len(X)) * X.transpose() @ ((X@w) -c) + 0.01*w))
         # success_percentages.append(soft_max_regression(X,c,w))
-        success_percentages.append(calculate_success(X,w,c))
+        success_percentages.append(calculate_success(X,w,c, b))
     return w, success_percentages
 
 
@@ -141,16 +127,16 @@ def pick_sample(X,c, m):
     samplec = c[indx]
     return sampleX, samplec
 
-def classify(X,W):
+def classify(X,W, b):
     m = len(X[0])
     l = len(W[0])
-    labels = np.argmax(soft_max(X,W), axis=0)
+    labels = np.argmax(soft_max(X,W, b), axis=0)
     classified_matrix = np.zeros((l,m))
     classified_matrix[labels, np.arange(m)] = 1
     return classified_matrix
 
-def calculate_success(X,W,C):
-    return 1 - np.sum(abs(C - classify(X,W))) / (2*len(X[0]))
+def calculate_success(X,W,C, b):
+    return 1 - np.sum(abs(C - classify(X,W, b))) / (2*len(X[0]))
 
 
 def test_data():
@@ -159,9 +145,10 @@ def test_data():
     X_valid = yv
     C_valid = Cv
     W = np.random.rand(len(X), len(C))
+    b = np.random.rand(len(C))
     epoch =200
-    w_train, success_percentages_train = SGD(grad_soft_max, X, W, C, epoch)
-    w_train_valid, success_percentages_validation = SGD(grad_soft_max, X_valid, W, C_valid, epoch)
+    w_train, success_percentages_train = SGD(grad_soft_max, X, W, C, epoch, b)
+    w_train_valid, success_percentages_validation = SGD(grad_soft_max, X_valid, W, C_valid, epoch, b)
     plt.plot(np.arange(len(success_percentages_train)), [x*100 for x in success_percentages_train], label='success percentage for train per epoch')
     plt.plot(np.arange(len(success_percentages_validation)), [x*100 for x in success_percentages_validation], label='success percentage for validation per epoch')
     plt.xlabel('epoch')
@@ -169,7 +156,7 @@ def test_data():
     plt.legend()
     plt.show()
 
-test_data()
+# test_data()
 
 
 # ---------------------------------------------------------------------------task2.2-------------------------------------------------------------------------
@@ -178,32 +165,33 @@ def forward_pass(f, X, W, B, l, C):
     keeper_X = [X]
     X_i = X
     for i in range(l-1):
-        X_i = f((W[i] @ X_i) + B[i])
+        X_i = f((W[i] @ X_i) + B[i].reshape(len(B[i]), 1))
         keeper_X.append(X_i)
-    return soft_max_regression(X_i, C, W[l-1]) #????????????????????????
+    return soft_max_regression(X_i, C, W[l-1], B[l-1]), keeper_X #????????????????????????
 
 def derive_by_X(X, W, b, v):
     return W.T @ derive_by_b(X, W, b, v)
 
 def derive_by_b(X, W, b, v):
-    return (tanh_derivative((W @ X).T + b) * v).T
+    return (tanh_derivative((W @ X).T + b) * v.T).T
 
 def derive_by_W(X, W, b, v):
     by_b = derive_by_b(X, W, b, v)
-    return np.reshape(by_b, (len(by_b), 1)) @ np.reshape(X, (1,len(X)))
+    return by_b @ X
 
 def grad_soft_max_by_X(X,W,C):
     return (1/len(X[0])) * W @ (np.exp(W.T@X) / np.sum(W.T @ X, axis=0) - C)
 
 def back_propagation(keeper_X, W, B, l, C):
-    grad = [grad_soft_max(keeper_X[l-1], W[l-1], C)]
-    deriv_by_x = derive_by_X(keeper_X[l-1], W[l-1], B[l-1], grad_soft_max_by_X)
+    grad = [grad_soft_max(keeper_X[l-1], W[l-1], C, B[l-1])]
+    deriv_by_x = grad_soft_max_by_X(keeper_X[l-1],W[l-1],C)
     for i in range(l-2, -1, -1):
         dw = derive_by_W(keeper_X[i], W[i], B[i], deriv_by_x)
         db = derive_by_b(keeper_X[i], W[i], B[i], deriv_by_x)
         curr_deriv_by_theta = np.append(dw, np.reshape(db, (len(db),1)), axis=1)
         grad.append(curr_deriv_by_theta)
         deriv_by_x = derive_by_X(keeper_X[i], W[i], B[i], deriv_by_x)
+    return np.asarray(grad)
 
 
 def tanh_derivative(X):
@@ -246,4 +234,35 @@ def test_jacobian():
 
 # test_jacobian()
 
+def test_grad_whole_network():
+    X = yt
+    C = Ct
+    # X = np.random.rand(10, 20)
+    # C = np.random.rand(20, 15)
+    W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(3,5)]
+    b = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
+    # D = np.random.rand(n, l)
+    d_W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(3,5)]
+    d_B = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
+    soft_max_loss = []
+    grad_soft_max_loss = []
+    epsilon = 1
+    func_result, keeper_X = forward_pass(np.tanh, X, W, b, len(W), C)
+    grad = back_propagation(keeper_X, W,b, len(W), C)
+    for i in range(20):
+        func_with_epsilon = forward_pass(np.tanh, X, W+epsilon*d_W[0], b, len(W), C)
+        soft_max_loss.append(abs(func_with_epsilon - func_result))
+        grad_soft_max_loss.append(abs(func_with_epsilon - func_result - (epsilon * (d_W[0] @ grad))))
+        epsilon *= 0.5
 
+    plt.figure()
+    plt.semilogy([i for i in range(20)], soft_max_loss, label="Zero order approx")
+    plt.semilogy([i for i in range(20)], grad_soft_max_loss, label="First order approx")
+    plt.xlabel('k')
+    plt.ylabel('error')
+    plt.title('Grad test in semilogarithmic plot')
+    plt.legend()
+    plt.show()
+
+
+test_grad_whole_network()
