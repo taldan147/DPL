@@ -237,11 +237,8 @@ def test_jacobian():
 def test_grad_whole_network():
     X = yt[:,0].reshape(2, 1)
     C = Ct[:,0].reshape(1, 5)
-    # X = np.random.rand(10, 20)
-    # C = np.random.rand(20, 15)
     W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(3,5)]
     b = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
-    # D = np.random.rand(n, l)
     d_W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(3,5)]
     d_B = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
     soft_max_loss = []
@@ -252,7 +249,7 @@ def test_grad_whole_network():
     flat_d = np.asarray([*d_W[2].T, *np.append(d_W[1], d_B[1].reshape(3, 1), axis=1).T, *np.append(d_W[0], d_B[0].reshape(3, 1), axis=1).T]).flatten()
     flat_grad = np.asarray([*grad[0].T, *grad[1].T, *grad[2].T]).flatten()
     for i in range(20):
-        new_W = [(W[0]+epsilon*d_W[0]), W[1], W[2]]
+        new_W = [(W[0]+epsilon*d_W[0]), (W[1]+epsilon*d_W[1]), (W[2]+epsilon*d_W[2])]
         func_with_epsilon, notIntresting = forward_pass(np.tanh, X, new_W, b, len(W), C)
         soft_max_loss.append(abs(func_with_epsilon - func_result))
         grad_soft_max_loss.append(abs(func_with_epsilon - func_result - (epsilon * (flat_d @ flat_grad))))
