@@ -173,7 +173,7 @@ def test_data():
     plt.legend()
     plt.show()
 
-test_data()
+# test_data()
 
 
 # ---------------------------------------------------------------------------task2.2-------------------------------------------------------------------------
@@ -181,34 +181,39 @@ test_data()
 def forward_pass(f, X, W, B, l, C):
     keeper_X = [X]
     X_i = X
-    for i in range(l-1):
-        X_i = f((W[i] @ X_i) + B[i])
+    for i in range(l - 1):
+        X_i = f((W[i] @ X_i) + B[i].reshape(len(B[i]), 1))
         keeper_X.append(X_i)
-    return soft_max_regression(X_i, C, W[l-1]) #????????????????????????
+    # return soft_max_regression(np.vstack([X_i, np.ones(1)]), C, W[l-1]), keeper_X #????????????????????????
+    keeper_X[len(keeper_X)-1] = np.vstack([X_i, np.ones(len(X_i[0]))])
+    return soft_max_regression(keeper_X[len(keeper_X)-1], C, W[l-1]), keeper_X #????????????????????????
 
 def derive_by_X(X, W, b, v):
     return W.T @ derive_by_b(X, W, b, v)
 
 def derive_by_b(X, W, b, v):
-    return (tanh_derivative((W @ X).T + b) * v).T
+    return (tanh_derivative((W @ X).T + b).T * v)
 
 def derive_by_W(X, W, b, v):
     by_b = derive_by_b(X, W, b, v)
-    return np.reshape(by_b, (len(by_b), 1)) @ np.reshape(X, (1,len(X)))
+    return by_b @ X.T
+    # return np.reshape(by_b, (len(by_b), 1)) @ np.reshape(X, (1,len(X)))
 
 def grad_soft_max_by_X(X,W,C):
+    X = np.delete(X, len(X)-1, 0)
+    W = np.delete(W, len(W)-1, 0)
     return (1/len(X[0])) * W @ (np.exp(W.T@X) / np.sum(W.T @ X, axis=0) - C)
 
 def back_propagation(keeper_X, W, B, l, C):
     grad = [grad_soft_max(keeper_X[l-1], W[l-1], C)]
-    deriv_by_x = derive_by_X(keeper_X[l-1], W[l-1], B[l-1], grad_soft_max_by_X)
+    deriv_by_x = grad_soft_max_by_X(keeper_X[l-1],W[l-1],C)
     for i in range(l-2, -1, -1):
         dw = derive_by_W(keeper_X[i], W[i], B[i], deriv_by_x)
-        db = derive_by_b(keeper_X[i], W[i], B[i], deriv_by_x)
+        db = np.sum(derive_by_b(keeper_X[i], W[i], B[i], deriv_by_x), axis=1)
         curr_deriv_by_theta = np.append(dw, np.reshape(db, (len(db),1)), axis=1)
         grad.append(curr_deriv_by_theta)
         deriv_by_x = derive_by_X(keeper_X[i], W[i], B[i], deriv_by_x)
-
+    return grad
 
 def tanh_derivative(X):
     return np.ones(np.shape(X)) - np.power(np.tanh(X), 2)
@@ -251,7 +256,38 @@ def test_jacobian():
 # test_jacobian()
 
 
-a = np.asarray([[1,3,5,7], [2,4,6,8]])
-a = np.vstack([a, np.ones(len(a[0]))])
-a = np.delete(a ,len(a)-1, 0)
-print(a)
+def test_grad_whole_network():
+    # X = yt[:,0].reshape(2, 1)
+    X = yt
+    # C = Ct[:,0].reshape(1, 5)
+    C = Ct
+    W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(4,5)]
+    b = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
+    d_W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(4,5)]
+    d_B = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
+    soft_max_loss = []
+    grad_soft_max_loss = []
+    epsilon = 1
+    func_result, keeper_X = forward_pass(np.tanh, X, W, b, len(W), C)
+    grad = back_propagation(keeper_X, W,b, len(W), C)
+    flat_d = np.asarray([*(d_W[2]).flatten(), *(np.append(d_W[1], d_B[1].reshape(3, 1), axis=1)).flatten(), *(np.append(d_W[0], d_B[0].reshape(3, 1), axis=1)).flatten()])
+    flat_grad = np.asarray([*(grad[0]).flatten(), *(grad[1]).flatten(), *(grad[2]).flatten()])
+    for i in range(20):
+        new_W = [(W[0]+epsilon*d_W[0]), (W[1]+epsilon*d_W[1]), (W[2]+epsilon*d_W[2])]
+        new_B = [b[0] + epsilon * d_B[0], b[1] + epsilon * d_B[1], b[2] + epsilon * d_B[2]]
+        func_with_epsilon, notIntresting = forward_pass(np.tanh, X, new_W, new_B, len(W), C)
+        soft_max_loss.append(abs(func_with_epsilon - func_result))
+        grad_soft_max_loss.append(abs(func_with_epsilon - func_result - (epsilon * (flat_d @ flat_grad))))
+        epsilon *= 0.5
+
+    plt.figure()
+    plt.semilogy([i for i in range(20)], soft_max_loss, label="Zero order approx")
+    plt.semilogy([i for i in range(20)], grad_soft_max_loss, label="First order approx")
+    plt.xlabel('k')
+    plt.ylabel('error')
+    plt.title('Grad test in semilogarithmic plot')
+    plt.legend()
+    plt.show()
+
+
+test_grad_whole_network()
