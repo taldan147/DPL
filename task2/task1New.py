@@ -5,14 +5,14 @@ import math
 import random
 import scipy.io as sio
 
-GMM = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\GMMData.mat')
-Peaks = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\PeaksData.mat')
-SwissRoll = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\SwissRollData.mat')
+GMM = sio.loadmat('GMMData.mat')
+Peaks = sio.loadmat('PeaksData.mat')
+SwissRoll = sio.loadmat('SwissRollData.mat')
 
-Ct = SwissRoll["Ct"]
-Cv = SwissRoll["Cv"]
-yt = SwissRoll["Yt"]
-yv = SwissRoll["Yv"]
+Ct = Peaks["Ct"]
+Cv = Peaks["Cv"]
+yt = Peaks["Yt"]
+yv = Peaks["Yv"]
 
 
 
@@ -371,13 +371,13 @@ def test_NN():
     X = yt
     X = np.vstack([X, np.ones(len(X[0]))])
     C = Ct
-    W = [np.random.rand(20,3),np.random.rand(4,20), np.random.rand(4,5)]
+    W = [np.random.rand(10,3),np.random.rand(4,10), np.random.rand(4,5)]
     W_valid = W.copy()
     X_valid = yv
     X_valid = np.vstack([X_valid, np.ones(len(X_valid[0]))])
     C_valid = Cv
-    epoch = 2000
-    w_train, success_percentages_train = SGD_NN(back_propagation, X, W, 0, C, epoch, 5000)
+    epoch = 1500
+    w_train, success_percentages_train = SGD_NN(back_propagation, X, W, 0, C, epoch, 1000)
     w_train_valid, success_percentages_validation = SGD_NN(back_propagation, X_valid, W_valid, 0, C_valid, epoch, 1000)
     plt.plot(np.arange(len(success_percentages_train)), [x*100 for x in success_percentages_train], label='success percentage for train per epoch')
     plt.plot(np.arange(len(success_percentages_validation)), [x*100 for x in success_percentages_validation], label='success percentage for validation per epoch')
