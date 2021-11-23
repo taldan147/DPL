@@ -9,10 +9,10 @@ GMM = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\GMMData.mat')
 Peaks = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\PeaksData.mat')
 SwissRoll = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\SwissRollData.mat')
 
-Ct = SwissRoll["Ct"]
-Cv = SwissRoll["Cv"]
-yt = SwissRoll["Yt"]
-yv = SwissRoll["Yv"]
+Ct = Peaks["Ct"]
+Cv = Peaks["Cv"]
+yt = Peaks["Yt"]
+yv = Peaks["Yv"]
 
 
 
@@ -111,10 +111,10 @@ def grad_test():
 
 # -------------------------------------------------------task 2.1.3------------------------------------------------
 
-def SGD(grad, X, w, c, epoch):
+def SGD(grad, X, w, c, epoch, batch):
     # norms = []
     lr = 1
-    batch = 2000
+    # batch = 6000
     # success_percentages = [soft_max_regression(X,c,w)]
     success_percentages = [calculate_success(X,w,c)]
     for i in range(epoch):
@@ -150,18 +150,22 @@ def classify(X,W):
     return classified_matrix
 
 def calculate_success(X,W,C):
+    # X = np.delete(X, len(X)-1, 0)
+    # classified = np.delete(classify(X,W), len(X)-1, 0)
     return 1 - np.sum(abs(C - classify(X,W))) / (2*len(X[0]))
 
 
 def test_data():
     X = yt
+    X = np.vstack([X, np.ones(len(X[0]))])
     C = Ct
     X_valid = yv
+    X_valid = np.vstack([X_valid, np.ones(len(X_valid[0]))])
     C_valid = Cv
     W = np.random.rand(len(X), len(C))
     epoch =200
-    w_train, success_percentages_train = SGD(grad_soft_max, X, W, C, epoch)
-    w_train_valid, success_percentages_validation = SGD(grad_soft_max, X_valid, W, C_valid, epoch)
+    w_train, success_percentages_train = SGD(grad_soft_max, X, W, C, epoch, 10000)
+    w_train_valid, success_percentages_validation = SGD(grad_soft_max, X_valid, W, C_valid, epoch, 1000)
     plt.plot(np.arange(len(success_percentages_train)), [x*100 for x in success_percentages_train], label='success percentage for train per epoch')
     plt.plot(np.arange(len(success_percentages_validation)), [x*100 for x in success_percentages_validation], label='success percentage for validation per epoch')
     plt.xlabel('epoch')
@@ -247,3 +251,7 @@ def test_jacobian():
 # test_jacobian()
 
 
+a = np.asarray([[1,3,5,7], [2,4,6,8]])
+a = np.vstack([a, np.ones(len(a[0]))])
+a = np.delete(a ,len(a)-1, 0)
+print(a)
