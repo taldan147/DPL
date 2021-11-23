@@ -184,9 +184,8 @@ def forward_pass(f, X, W, B, l, C):
     for i in range(l - 1):
         X_i = f((W[i] @ X_i) + B[i].reshape(len(B[i]), 1))
         keeper_X.append(X_i)
-    # return soft_max_regression(np.vstack([X_i, np.ones(1)]), C, W[l-1]), keeper_X #????????????????????????
-    keeper_X[len(keeper_X)-1] = np.vstack([X_i, np.ones(len(X_i[0]))])
-    return soft_max_regression(keeper_X[len(keeper_X)-1], C, W[l-1]), keeper_X #????????????????????????
+    keeper_X[l-1] = np.vstack([X_i, np.ones(len(X_i[0]))])
+    return soft_max_regression(keeper_X[l-1], C, W[l-1]), keeper_X
 
 def derive_by_X(X, W, b, v):
     return W.T @ derive_by_b(X, W, b, v)
@@ -291,3 +290,7 @@ def test_grad_whole_network():
 
 
 test_grad_whole_network()
+
+a = np.asarray([[1,2,3], [4,5,6]])
+a = np.delete(a, 2, 1)
+print(a)
