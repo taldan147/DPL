@@ -78,6 +78,7 @@ def calculate_eta_vector(X, W):
 
 def grad_test():
     X = yt
+    X = np.vstack([X, np.ones(len(X[0]))])
     C = Ct
     # X = np.random.rand(10, 20)
     # C = np.random.rand(20, 15)
@@ -182,16 +183,20 @@ def forward_pass(f, X, W, B, l, C):
     keeper_X = [X]
     X_i = X
     for i in range(l - 1):
-        X_i = f((W[i] @ X_i) + B[i].reshape(len(B[i]), 1))
+        # X_i = f((W[i] @ X_i) + B[i].reshape(len(B[i]), 1))
+        X_i = f((W[i] @ X_i))
         keeper_X.append(X_i)
-    keeper_X[l-1] = np.vstack([X_i, np.ones(len(X_i[0]))])
+    # keeper_X[l-1] = np.vstack([X_i, np.ones(len(X_i[0]))])
     return soft_max_regression(keeper_X[l-1], C, W[l-1]), keeper_X
 
 def derive_by_X(X, W, b, v):
+    # X = np.delete(X, len(X) - 1, 0)
+    # W = np.delete(W, len(W) - 1, 0)
     return W.T @ derive_by_b(X, W, b, v)
 
 def derive_by_b(X, W, b, v):
-    return (tanh_derivative((W @ X).T + b).T * v)
+    return (tanh_derivative((W @ X)) * v)
+    # return (tanh_derivative((W @ X).T + b).T * v)
 
 def derive_by_W(X, W, b, v):
     by_b = derive_by_b(X, W, b, v)
@@ -199,18 +204,20 @@ def derive_by_W(X, W, b, v):
     # return np.reshape(by_b, (len(by_b), 1)) @ np.reshape(X, (1,len(X)))
 
 def grad_soft_max_by_X(X,W,C):
-    X = np.delete(X, len(X)-1, 0)
-    W = np.delete(W, len(W)-1, 0)
-    return (1/len(X[0])) * W @ (np.exp(W.T@X) / np.sum(W.T @ X, axis=0) - C)
+    eta = calculate_eta_vector(X,W)
+    # X = np.delete(X, len(X)-1, 0)
+    # W = np.delete(W, len(W)-1, 0)
+    return (1/len(X[0])) * (W @ ((np.exp(W.T@X - eta) / np.sum(np.exp(W.T @ X - eta), axis=0)) - C))
 
 def back_propagation(keeper_X, W, B, l, C):
     grad = [grad_soft_max(keeper_X[l-1], W[l-1], C)]
     deriv_by_x = grad_soft_max_by_X(keeper_X[l-1],W[l-1],C)
     for i in range(l-2, -1, -1):
         dw = derive_by_W(keeper_X[i], W[i], B[i], deriv_by_x)
-        db = np.sum(derive_by_b(keeper_X[i], W[i], B[i], deriv_by_x), axis=1)
-        curr_deriv_by_theta = np.append(dw, np.reshape(db, (len(db),1)), axis=1)
-        grad.append(curr_deriv_by_theta)
+        # db = np.sum(derive_by_b(keeper_X[i], W[i], B[i], deriv_by_x), axis=1)
+        # curr_deriv_by_theta = np.append(dw, np.reshape(db, (len(db),1)), axis=1)
+        # grad.append(curr_deriv_by_theta)
+        grad.append(dw)
         deriv_by_x = derive_by_X(keeper_X[i], W[i], B[i], deriv_by_x)
     return grad
 
@@ -258,23 +265,25 @@ def test_jacobian():
 def test_grad_whole_network():
     # X = yt[:,0].reshape(2, 1)
     X = yt
+    X = np.vstack([X, np.ones(len(X[0]))])
     # C = Ct[:,0].reshape(1, 5)
     C = Ct
-    W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(4,5)]
+    W = [np.random.rand(4,3),np.random.rand(4,4), np.random.rand(4,5)]
     b = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
-    d_W = [np.random.rand(3,2),np.random.rand(3,3), np.random.rand(4,5)]
+    d_W = [np.random.rand(4,3),np.random.rand(4,4), np.random.rand(4,5)]
     d_B = [np.random.rand(3), np.random.rand(3), np.random.rand(5)]
     soft_max_loss = []
     grad_soft_max_loss = []
     epsilon = 1
     func_result, keeper_X = forward_pass(np.tanh, X, W, b, len(W), C)
     grad = back_propagation(keeper_X, W,b, len(W), C)
-    flat_d = np.asarray([*(d_W[2]).flatten(), *(np.append(d_W[1], d_B[1].reshape(3, 1), axis=1)).flatten(), *(np.append(d_W[0], d_B[0].reshape(3, 1), axis=1)).flatten()])
+    flat_d = np.asarray([*(d_W[2]).flatten(), *(d_W[1]).flatten(), *(d_W[0]).flatten()])
+    # flat_d = np.asarray([*(d_W[2]).flatten(), *(np.append(d_W[1], d_B[1].reshape(3, 1), axis=1)).flatten(), *(np.append(d_W[0], d_B[0].reshape(3, 1), axis=1)).flatten()])
     flat_grad = np.asarray([*(grad[0]).flatten(), *(grad[1]).flatten(), *(grad[2]).flatten()])
     for i in range(20):
         new_W = [(W[0]+epsilon*d_W[0]), (W[1]+epsilon*d_W[1]), (W[2]+epsilon*d_W[2])]
         new_B = [b[0] + epsilon * d_B[0], b[1] + epsilon * d_B[1], b[2] + epsilon * d_B[2]]
-        func_with_epsilon, notIntresting = forward_pass(np.tanh, X, new_W, new_B, len(W), C)
+        func_with_epsilon, notIntresting = forward_pass(np.tanh, X, new_W, b, len(W), C)
         soft_max_loss.append(abs(func_with_epsilon - func_result))
         grad_soft_max_loss.append(abs(func_with_epsilon - func_result - (epsilon * (flat_d @ flat_grad))))
         epsilon *= 0.5
@@ -288,9 +297,62 @@ def test_grad_whole_network():
     plt.legend()
     plt.show()
 
-
 test_grad_whole_network()
 
-a = np.asarray([[1,2,3], [4,5,6]])
-a = np.delete(a, 2, 1)
-print(a)
+def grad_test_soft_max_by_X():
+    X = yt
+    # X = np.vstack([X, np.ones(len(X[0]))])
+    C = Ct
+    # X = np.random.rand(10, 20)
+    # C = np.random.rand(20, 15)
+    n = len(X)
+    l = len(C)
+    W = np.random.rand(n, l)
+    D = np.random.rand(n, len(X[0]))
+    D = (1/LA.norm(D)) * D
+    D_deleted = np.delete(D, len(D)-1, 0)
+    soft_max_loss = []
+    grad_soft_max_loss = []
+    epsilon = 1
+    func_result = soft_max_regression(X, C, W)
+    grad = grad_soft_max_by_X(X, W, C)
+    for i in range(20):
+        func_with_epsilon = soft_max_regression(X+ (epsilon*D),C,W)
+        soft_max_loss.append(abs(func_with_epsilon - func_result))
+        grad_soft_max_loss.append(abs(func_with_epsilon-func_result-(epsilon*(np.ndarray.flatten(D) @ np.ndarray.flatten(grad)))))
+        epsilon *= 0.5
+
+    plt.figure()
+    plt.semilogy([i for i in range(20)], soft_max_loss, label="Zero order approx")
+    plt.semilogy([i for i in range(20)], grad_soft_max_loss, label="First order approx")
+    plt.xlabel('k')
+    plt.ylabel('error')
+    plt.title('Grad test in semilogarithmic plot')
+    plt.legend()
+    plt.show()
+
+# grad_test_soft_max_by_X()
+
+def SGD_NN(grad, X, w,b, c, epoch, batch):
+    # norms = []
+    lr = 1
+    # batch = 6000
+    # success_percentages = [soft_max_regression(X,c,w)]
+    success_percentages = [calculate_success(X,w,c)]
+    for i in range(epoch):
+        perm = np.random.permutation(len(X[0]))
+        lr = 1/(math.sqrt(1+i))
+        # if i % 50 == 0:
+        #     lr *=0.1
+        for k in range(math.floor(len(X[0])/batch)):
+            indx = perm[k*batch:(k+1)*batch]
+            currX = X[:, indx]
+            currc = c[:, indx]
+            gradK = grad(currX, w, currc) + 0.01*w
+            w = w-lr*gradK
+        # norms.append(LA.norm((1/len(X)) * X.transpose() @ ((X@w) -c) + 0.01*w))
+        # success_percentages.append(soft_max_regression(X,c,w))
+        success_percentages.append(calculate_success(X,w,c))
+    return w, success_percentages
+
+# def update_param(W, b, grad, lr):

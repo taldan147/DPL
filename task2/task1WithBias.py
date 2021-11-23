@@ -5,9 +5,9 @@ import math
 import random
 import scipy.io as sio
 
-GMM = sio.loadmat('/Users/itamarkedem-student/Desktop/Programming/DPL/task2/GMMData.mat')
-Peaks = sio.loadmat('/Users/itamarkedem-student/Desktop/Programming/DPL/task2/PeaksData.mat')
-SwissRoll = sio.loadmat('/Users/itamarkedem-student/Desktop/Programming/DPL/task2/SwissRollData.mat')
+GMM = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\GMMData.mat')
+Peaks = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\PeaksData.mat')
+SwissRoll = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\SwissRollData.mat')
 
 Ct = Peaks["Ct"]
 Cv = Peaks["Cv"]
