@@ -9,10 +9,10 @@ GMM = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\GMMData.mat')
 Peaks = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\PeaksData.mat')
 SwissRoll = sio.loadmat('C:\\Users\\tald9\\PycharmProjects\\DPL\\task2\\SwissRollData.mat')
 
-Ct = Peaks["Ct"]
-Cv = Peaks["Cv"]
-yt = Peaks["Yt"]
-yv = Peaks["Yv"]
+Ct = GMM["Ct"]
+Cv = GMM["Cv"]
+yt = GMM["Yt"]
+yv = GMM["Yv"]
 
 
 
@@ -319,7 +319,7 @@ def test_grad_whole_network():
     plt.legend()
     plt.show()
 
-test_grad_whole_network()
+# test_grad_whole_network()
 
 
 
@@ -359,15 +359,15 @@ def grad_test_soft_max_by_X():
 
 def SGD_ResNet(back_prop, X, W1, W2, b, c, epoch, batch):
     # norms = []
-    # lr = 0.1
+    lr = 0.5
     # batch = 6000
     # success_percentages = [soft_max_regression(X,c,w)]
     success_percentages = [calculate_success_Res_Net(X, W1, W2, b, c)]
     for i in range(epoch):
         perm = np.random.permutation(len(X[0]))
-        lr = 1/(math.sqrt(1+i))
-        # if i % 50 == 0:
-        #     lr *=0.1
+        # lr = 1/(math.sqrt(1+i))
+        if i == 100:
+            lr *=0.1
         for k in range(math.floor(len(X[0])/batch)):
             indx = perm[k*batch:(k+1)*batch]
             currX = X[:, indx]
@@ -399,23 +399,23 @@ def calculate_success_Res_Net(X, W1, W2,b, C):
 
 def test_NN_swissroll():
     X = yt
-    X = np.vstack([X, np.ones(len(X[0]))])
+    # X = np.vstack([X, np.ones(len(X[0]))])
     C = Ct
     # W1 = generate_list_of_matrix(2,[2,2])
     # W1.append(np.random.rand(2,5))
     # W2 = generate_list_of_matrix(2,[2,2])
     # b = generate_list_of_matrix(2,[2,1])
-    W1 = [np.random.rand(10, 3), np.random.rand(10, 10), np.random.rand(10, 10), np.random.rand(10, 2)]
+    W1 = [np.random.rand(10, 2), np.random.rand(10, 10), np.random.rand(10, 10), np.random.rand(11, 2)]
     W1 = normalize_matrix(W1)
     W2 = [np.random.rand(10, 10), np.random.rand(10, 10)]
     W2 = normalize_matrix(W2)
-    b = [np.random.rand(10, 1), np.random.rand(10, 1)]
+    b = [np.random.rand(10, 1), np.random.rand(10, 1), np.random.rand(10, 1)]
     W1_valid = W1.copy()
     W2_valid = W2.copy()
     X_valid = yv
-    X_valid = np.vstack([X_valid, np.ones(len(X_valid[0]))])
+    # X_valid = np.vstack([X_valid, np.ones(len(X_valid[0]))])
     C_valid = Cv
-    epoch = 100
+    epoch = 400
     success_percentages_train = SGD_ResNet(back_propagation, X, W1, W2, b, C, epoch, 100)
     success_percentages_validation = SGD_ResNet(back_propagation, X_valid, W1_valid, W2_valid, b, C_valid, epoch, 100)
     plt.plot(np.arange(len(success_percentages_train)), [x * 100 for x in success_percentages_train],
@@ -456,8 +456,36 @@ def test_NN_peaks():
     X_valid = yv
     # X_valid = np.vstack([X_valid, np.ones(len(X_valid[0]))])
     C_valid = Cv
-    epoch = 100
-    success_percentages_train = SGD_ResNet(back_propagation, X, W1,W2, b, C, epoch, 100)
+    epoch = 300
+    success_percentages_train = SGD_ResNet(back_propagation, X, W1,W2, b, C, epoch, 200)
+    success_percentages_validation = SGD_ResNet(back_propagation, X_valid, W1_valid,W2_valid, b, C_valid, epoch, 100)
+    plt.plot(np.arange(len(success_percentages_train)), [x*100 for x in success_percentages_train], label='success percentage for train per epoch')
+    plt.plot(np.arange(len(success_percentages_validation)), [x*100 for x in success_percentages_validation], label='success percentage for validation per epoch')
+    plt.xlabel('epoch')
+    plt.ylabel('success percentage')
+    plt.legend()
+    plt.show()
+
+def test_NN_GMM():
+    X = yt
+    # X = np.vstack([X, np.ones(len(X[0]))])
+    C = Ct
+    # W1 = generate_list_of_matrix(2,[2,2])
+    # W1.append(np.random.rand(2,5))
+    # W2 = generate_list_of_matrix(2,[2,2])
+    # b = generate_list_of_matrix(2,[2,1])
+    W1 = [np.random.rand(10,5), np.random.rand(10,10),np.random.rand(10,10), np.random.rand(11,5)]
+    W1 = normalize_matrix(W1)
+    W2 = [np.random.rand(10,10),np.random.rand(10,10)]
+    W2 = normalize_matrix(W2)
+    b = [np.random.rand(10,1),np.random.rand(10,1),np.random.rand(10,1)]
+    W1_valid = W1.copy()
+    W2_valid = W2.copy()
+    X_valid = yv
+    # X_valid = np.vstack([X_valid, np.ones(len(X_valid[0]))])
+    C_valid = Cv
+    epoch = 300
+    success_percentages_train = SGD_ResNet(back_propagation, X, W1,W2, b, C, epoch, 200)
     success_percentages_validation = SGD_ResNet(back_propagation, X_valid, W1_valid,W2_valid, b, C_valid, epoch, 100)
     plt.plot(np.arange(len(success_percentages_train)), [x*100 for x in success_percentages_train], label='success percentage for train per epoch')
     plt.plot(np.arange(len(success_percentages_validation)), [x*100 for x in success_percentages_validation], label='success percentage for validation per epoch')
@@ -468,3 +496,4 @@ def test_NN_peaks():
 
 # test_NN_peaks()
 # test_NN_swissroll()
+test_NN_GMM()
