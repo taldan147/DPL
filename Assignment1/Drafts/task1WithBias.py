@@ -287,4 +287,3 @@ def test_grad_whole_network():
 for i in range(20):
     test_grad_whole_network()
 
-for i in range(l, -1, -1)
