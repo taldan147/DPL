@@ -9,14 +9,14 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=1000, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=64, help="batch size")
+parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=256, help="lstm hidden size")
-parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
+parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
+parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
-parser.add_argument('--dropout', type=float, default=0.2, help="dropout ratio")
+parser.add_argument('--dropout', type=float, default=0.0, help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=50, help="size of a seq")
 args =  parser.parse_args()
 
@@ -39,9 +39,11 @@ class ToyAE():
         validateLoss = []
         self.AE.to(self.device)
         for epoch in range(self.epochs):
+            print(epoch)
             currLoss = 0
             perm = np.random.permutation(len(self.trainData))
             for k in range(math.floor(len(self.trainData)/self.batchs)):
+                print(k)
                 indx = perm[k * self.batchs:(k + 1) * self.batchs]
                 currX = self.trainData[indx]
                 self.optimizer.zero_grad()
@@ -67,7 +69,9 @@ class ToyAE():
         plt.plot(loss, np.arange(self.epochs))
         plt.show()
 
+
         reconstruct = self.reconstruct(self.trainData)
+
         plt.figure()
         plt.title("reconstruction")
         plt.plot(reconstruct[0], label="reconstructed")

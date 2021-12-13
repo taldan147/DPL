@@ -12,7 +12,7 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         output, (h_t, c_t) = self.lstmEncoder(x)
-        return h_t.view(-1, 1, self.num_of_layers)
+        return h_t.view(-1, 1, self.hs_size)
 
 class Decoder(nn.Module):
     def __init__(self, input_size, num_of_layers, seq_size, hs_size, dropout):
@@ -23,7 +23,7 @@ class Decoder(nn.Module):
         self.dropout = dropout
         self.seq_size = seq_size
         self.linear = nn.Linear(hs_size, input_size)
-        self.lstmDecoder = nn.LSTM(hs_size, hs_size, num_of_layers, batch_first=True, dropout=dropout)
+        self.lstmDecoder = nn.LSTM(hs_size, hs_size, batch_first=True, dropout=dropout)
 
     def forward(self, x: torch.tensor):
         x = x.repeat(1, self.seq_size, 1)
