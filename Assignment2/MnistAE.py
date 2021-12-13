@@ -11,9 +11,9 @@ import os
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
 parser.add_argument('--batch_size', type=int, default=64, help="batch size")
-parser.add_argument('--epochs', type=int, default=20, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=3, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=7, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=28, help="size of an input")
@@ -33,9 +33,9 @@ def parseData():
     for key in data.keys():
         trainData.extend(data[key][:int(0.6 * len(data[key])), :])
         validateData.extend(data[key][int(0.6 * len(data[key])):int(0.8 * len(data[key])), :])
-    trainData = [np.split(x, 28) for x in trainData]
-    validateData = [np.split(x, 28) for x in validateData]
-    return torch.tensor(trainData), torch.tensor(validateData)
+    trainData = np.asarray([np.split(x, 28) for x in trainData])/255
+    validateData = np.asarray([np.split(x, 28) for x in validateData])/255
+    return torch.from_numpy(trainData).type(torch.FloatTensor), torch.from_numpy(validateData).type(torch.FloatTensor)
 
 class MnistAE():
     def __init__(self):
@@ -62,7 +62,7 @@ class MnistAE():
             currLoss = 0
             perm = np.random.permutation(len(self.trainData))
             for k in range(math.floor(len(self.trainData)/self.batchs)):
-                print(f"this is iteration number {k} for epoch number {epoch}")
+                print(f"this is iteration number {k+1} for epoch number {epoch+1}")
                 indx = perm[k * self.batchs:(k + 1) * self.batchs]
                 currX = self.trainData[indx]
                 self.optimizer.zero_grad()
@@ -86,26 +86,32 @@ class MnistAE():
         startLoss = time.perf_counter()
         loss = self.train()
         plt.figure()
-        plt.title("Loss on mnist")
-        plt.plot(np.arange(self.epochs), loss)
+        pixels = self.reconstruct(self.trainData).detach().squeeze().numpy()[0].reshape(28, 28)
+        plt.title("Reconstructed")
+        plt.imshow(pixels, cmap='gray')
+        plt.show()
+
+        pixels = self.trainData.detach().squeeze().numpy()[0].reshape(28, 28)
+        plt.title("Original")
+        plt.imshow(pixels, cmap='gray')
         plt.show()
 
         endLoss = time.perf_counter()
-
-        reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
-
-        plt.figure()
-        plt.title("reconstruction")
-        plt.plot(reconstruct[0], label="reconstructed")
-        plt.plot(self.trainData[0], label="Data")
-        plt.show()
-
+        #
+        # reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
+        #
+        # plt.figure()
+        # plt.title("reconstruction")
+        # plt.plot(reconstruct[0], label="reconstructed")
+        # plt.plot(self.trainData[0], label="Data")
+        # plt.show()
+        #
         endReconstruct = time.perf_counter()
 
-        print("The parameters of the NN are:")
+        print("\nThe parameters of the NN are:")
         print(f"layers - {args.num_of_layers}\nepochs - {args.epochs}\nbatch size - {args.batch_size}\nlearning rate - {args.lr}\noptimizer - {args.optimizer}\n")
         print(f"the loss calc took {(endLoss-startLoss)/60} minutes")
-        print(f"the reconstruct calc took {(endReconstruct-endLoss)/60} minutes")
+        # print(f"the reconstruct calc took {(endReconstruct-endLoss)/60} minutes")
         print(f"overall it took {(endReconstruct-startLoss)/60} minutes")
 
 MnistAE().plotNN()

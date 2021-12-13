@@ -45,7 +45,7 @@ class ToyAE():
             currLoss = 0
             perm = np.random.permutation(len(self.trainData))
             for k in range(math.floor(len(self.trainData)/self.batchs)):
-                print(f"this is iteration number {k} for epoch number {epoch}")
+                print(f"this is iteration number {k+1} for epoch number {epoch+1}")
                 indx = perm[k * self.batchs:(k + 1) * self.batchs]
                 currX = self.trainData[indx]
                 self.optimizer.zero_grad()
