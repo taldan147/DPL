@@ -69,7 +69,7 @@ class ToyAE():
         loss = self.train()
         plt.figure()
         plt.title("Loss on Toys")
-        plt.plot(loss, np.arange(self.epochs))
+        plt.plot(np.arange(self.epochs), loss)
         plt.show()
 
         endLoss = time.perf_counter()
@@ -90,4 +90,4 @@ class ToyAE():
         print(f"the reconstruct calc took {(endReconstruct-endLoss)/60} minutes")
         print(f"overall it took {(endReconstruct-startLoss)/60} minutes")
 
-ToyAE().plotNN()
+# ToyAE().plotNN()
