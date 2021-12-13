@@ -21,5 +21,3 @@ def exampleData(randData):
     plt.ylabel("Value")
     plt.show()
 
-exampleData(genData())
-
