@@ -23,10 +23,10 @@ class Decoder(nn.Module):
         self.dropout = dropout
         self.seq_size = seq_size
         self.linear = nn.Linear(hs_size, input_size)
-        self.lstmDecoder = nn.LSTM(input_size, hs_size, num_of_layers, batch_first=True, dropout=dropout)
+        self.lstmDecoder = nn.LSTM(hs_size, hs_size, num_of_layers, batch_first=True, dropout=dropout)
 
     def forward(self, x: torch.tensor):
-        x = x.repeat(1, self.seq_size)
+        x = x.repeat(1, self.seq_size, 1)
         output, (_, _) = self.lstmDecoder(x)
         return self.linear(output)
 
