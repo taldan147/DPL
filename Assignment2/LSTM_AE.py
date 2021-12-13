@@ -11,7 +11,6 @@ class Encoder(nn.Module):
         self.lstmEncoder = nn.LSTM(input_size, hs_size, num_of_layers, batch_first=True, dropout=dropout)
 
     def forward(self, x):
-        print(x.shape)
         output, (h_t, c_t) = self.lstmEncoder(x)
         return h_t.view(-1, 1, self.num_of_layers)
 

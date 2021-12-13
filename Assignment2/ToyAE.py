@@ -43,7 +43,7 @@ class ToyAE():
             perm = np.random.permutation(len(self.trainData))
             for k in range(math.floor(len(self.trainData)/self.batchs)):
                 indx = perm[k * self.batchs:(k + 1) * self.batchs]
-                currX = torch.from_numpy(self.trainData[indx])
+                currX = self.trainData[indx]
                 self.optimizer.zero_grad()
                 currX.to(self.device)
                 output = self.AE.forward(currX)
@@ -58,7 +58,7 @@ class ToyAE():
 
     def reconstruct(self, data):
         data.to(self.device)
-        return self.AE.forward(torch.from_numpy(data))
+        return self.AE.forward(data)
 
     def plotNN(self):
         loss = self.train()
@@ -67,7 +67,7 @@ class ToyAE():
         plt.plot(loss, np.arange(self.epochs))
         plt.show()
 
-        reconstruct = self.reconstruct(torch.from_numpy(self.trainData))
+        reconstruct = self.reconstruct(self.trainData)
         plt.figure()
         plt.title("reconstruction")
         plt.plot(reconstruct[0], label="reconstructed")

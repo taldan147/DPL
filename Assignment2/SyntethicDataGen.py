@@ -1,9 +1,10 @@
 import numpy as np
 import random
+import torch
 import matplotlib.pyplot as plt
 
 def genData():
-    randData = np.random.rand(10000, 50)
+    randData = torch.rand(10000, 50, 1)
     for i in range(10000):
         j = random.randint(20, 30)
         for k in range(j-5, j+6, 1):
