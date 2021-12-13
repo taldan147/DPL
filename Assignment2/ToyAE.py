@@ -65,14 +65,14 @@ class ToyAE():
 
     def plotNN(self):
 
-        start = time.perf_counter()
+        startLoss = time.perf_counter()
         loss = self.train()
         plt.figure()
         plt.title("Loss on Toys")
         plt.plot(loss, np.arange(self.epochs))
         plt.show()
 
-        end1 = time.perf_counter()
+        endLoss = time.perf_counter()
 
         reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
 
@@ -82,12 +82,12 @@ class ToyAE():
         plt.plot(self.trainData[0], label="Data")
         plt.show()
 
-        end2 = time.perf_counter()
+        endReconstruct = time.perf_counter()
 
         print("The parameters of the NN are:")
         print(f"layers - {args.num_of_layers}\nepochs - {args.epochs}\nbatch size - {args.batch_size}\nlearning rate - {args.lr}\noptimizer - {args.optimizer}\n")
-        print(f"the loss calc took {(end1-start)/60} minutes")
-        print(f"the reconstruct calc took {(end2-end1)/60} minutes")
-        print(f"overall it took {(end2-start)/60} minutes")
+        print(f"the loss calc took {(endLoss-startLoss)/60} minutes")
+        print(f"the reconstruct calc took {(endReconstruct-endLoss)/60} minutes")
+        print(f"overall it took {(endReconstruct-startLoss)/60} minutes")
 
 ToyAE().plotNN()
