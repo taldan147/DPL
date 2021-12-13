@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=64, help="batch size")
-parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=50, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
-parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
+parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
 parser.add_argument('--dropout', type=float, default=0.0, help="dropout ratio")
@@ -28,7 +28,7 @@ class ToyAE():
         self.validateData = data[int(0.6 * len(data)):int(0.8 * len(data)), :]
         self.epochs = args.epochs
         self.batchs = args.batch_size
-        self.device = torch.device("cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.AE = AE.LSTMAE(args.input_size, args.num_of_layers, args.seq_size, args.hidden_size, args.dropout)
         self.optimizer = torch.optim.Adam(self.AE.parameters(), args.lr) if (args.optimizer == "Adam")  else torch.optim.SGD(self.AE.parameters(), lr=args.lr)
 
@@ -70,7 +70,7 @@ class ToyAE():
         plt.show()
 
 
-        reconstruct = self.reconstruct(self.trainData)
+        reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
 
         plt.figure()
         plt.title("reconstruction")
