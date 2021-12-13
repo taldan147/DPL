@@ -7,16 +7,17 @@ import argparse
 import numpy as np
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import time
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=64, help="batch size")
-parser.add_argument('--epochs', type=int, default=50, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=128, help="batch size")
+parser.add_argument('--epochs', type=int, default=200, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
-parser.add_argument('--dropout', type=float, default=0.0, help="dropout ratio")
+parser.add_argument('--dropout', type=float, default=0.2, help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=50, help="size of a seq")
 args =  parser.parse_args()
 
@@ -39,11 +40,11 @@ class ToyAE():
         validateLoss = []
         self.AE.to(self.device)
         for epoch in range(self.epochs):
-            print(epoch)
+            print(f"this is epoch number {epoch}")
             currLoss = 0
             perm = np.random.permutation(len(self.trainData))
             for k in range(math.floor(len(self.trainData)/self.batchs)):
-                print(k)
+                print(f"this is iteration number {k}")
                 indx = perm[k * self.batchs:(k + 1) * self.batchs]
                 currX = self.trainData[indx]
                 self.optimizer.zero_grad()
@@ -63,12 +64,15 @@ class ToyAE():
         return self.AE.forward(data)
 
     def plotNN(self):
+
+        start = time.perf_counter()
         loss = self.train()
         plt.figure()
         plt.title("Loss on Toys")
         plt.plot(loss, np.arange(self.epochs))
         plt.show()
 
+        end1 = time.perf_counter()
 
         reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
 
@@ -78,5 +82,12 @@ class ToyAE():
         plt.plot(self.trainData[0], label="Data")
         plt.show()
 
+        end2 = time.perf_counter()
+
+        print("The parameters of the NN are:")
+        print(f"layers - {args.num_of_layers}\nepochs - {args.epochs}\nbatch size - {args.batch_size}\nlearning rate - {args.lr}\noptimizer - {args.optimizer}\n")
+        print(f"the loss calc took {(end1-start)/60} minutes")
+        print(f"the reconstruct calc took {(end2-end1)/60} minutes")
+        print(f"overall it took {(end2-start)/60} minutes")
 
 ToyAE().plotNN()
