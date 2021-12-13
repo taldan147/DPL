@@ -19,6 +19,7 @@ parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
 parser.add_argument('--dropout', type=float, default=0.2, help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=50, help="size of a seq")
+parser.add_argument('--output_size', type=int, default=1, help="size of the output")
 args =  parser.parse_args()
 
 class ToyAE():
@@ -30,7 +31,7 @@ class ToyAE():
         self.epochs = args.epochs
         self.batchs = args.batch_size
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.AE = AE.LSTMAE(args.input_size, args.num_of_layers, args.seq_size, args.hidden_size, args.dropout)
+        self.AE = AE.LSTMAE(args.input_size, args.num_of_layers, args.seq_size, args.hidden_size, args.dropout, args.output_size)
         self.optimizer = torch.optim.Adam(self.AE.parameters(), args.lr) if (args.optimizer == "Adam")  else torch.optim.SGD(self.AE.parameters(), lr=args.lr)
 
         print(f"using {self.device} as computing unit")
