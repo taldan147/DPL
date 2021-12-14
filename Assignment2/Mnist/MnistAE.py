@@ -13,7 +13,7 @@ import os
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=10, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -155,11 +155,16 @@ class MnistAE():
     def plotClassification(self):
         startLoss = time.perf_counter()
 
-        trainLoss = self.trainClassification()
+        trainLoss, accuracy = self.trainClassification()
 
         plt.figure()
         plt.title("Classification Loss")
         plt.plot(np.arange(self.epochs), trainLoss)
+        plt.show()
+
+        plt.figure()
+        plt.title("Accuracy")
+        plt.plot(np.arange(self.epochs), accuracy)
         plt.show()
 
         dataIter = iter(self.testData)
@@ -170,7 +175,7 @@ class MnistAE():
         plt.show()
 
         reconed, label = self.reconstructClass(torch.unsqueeze(figure, 0))
-        fixedLabel = np.argmax(label.squeeze().detach().numpy(), axis=1)
+        fixedLabel = np.argmax(label.squeeze().detach().numpy())
         print(fixedLabel)
         plt.title("Reconstructed")
         plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
@@ -182,7 +187,7 @@ class MnistAE():
 
     def accuracy(self, predict, labels):
         newPredict = np.argmax(predict.squeeze().detach().numpy(), axis=1)
-        return np.mean(newPredict != labels.detach().numpy())
+        return 1 - np.mean(newPredict != labels.detach().numpy())
 
 
 MnistAE().plotClassification()
