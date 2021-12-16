@@ -107,6 +107,7 @@ class MnistAE():
             print("Will save net!")
         NN = self.AEC if (useRows) else self.pixel_AEC
         NN.to(self.device)
+
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch + 1}")
             currLoss = 0
@@ -115,6 +116,7 @@ class MnistAE():
                 print(
                     f"this is iteration number {ind + 1}/{len(self.trainData)} for epoch number {epoch + 1}/{args.epochs}")
                 currX = img.squeeze()
+                print(f"\n{currX}\n")
                 if not useRows:
                     currX = currX.view(self.batchs, args.pixel_seq_size, 1)
                 self.optimizer.zero_grad()
