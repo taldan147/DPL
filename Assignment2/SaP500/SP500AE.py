@@ -13,8 +13,8 @@ import time
 import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=20, help="batch size")
+parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=200, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -32,7 +32,6 @@ netDir = f"{currDir}/SavedNets/Net.pt"
 
 def parseData():
     stocks = pd.read_csv(dataPath)
-    print(stocks.keys())
     return stocks.sort_values(by='date')
 
 
@@ -67,9 +66,6 @@ def createRandomIndices(n, trainSize):
 class SP500AE():
     def __init__(self):
         super(SP500AE, self).__init__()
-        # data = []
-        # self.trainData = data[:int(0.6 * len(data)), :]
-        # self.validateData = data[int(0.6 * len(data)):int(0.8 * len(data)), :]
         self.epochs = args.epochs
         self.batchs = args.batch_size
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,7 +101,8 @@ class SP500AE():
         else:
             print(f"Finished training. Not saving net")
 
-        return nn.MSELoss().forward(self.AE(validateData), validateData)
+        finalData = validateData.unsqueeze(2)
+        return nn.MSELoss().forward(self.AE(finalData), finalData)
 
     def crossValidate(self, data, k):
         trainTensor, testTensor = splitData(data, k)
@@ -117,7 +114,7 @@ class SP500AE():
             trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
             lossArr.append(self.train(trainLoader, currValidate))
             endIter = time.perf_counter()
-            print(f"the {k+1} iteration took {(endIter - startIter)/60} mintues")
+            print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
         bestArg = np.argmin(np.asarray(lossArr))
         bestTrain = self.prepareData(trainTensor, bestArg)
         bestLoss = self.train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
