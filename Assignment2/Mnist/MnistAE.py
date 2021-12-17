@@ -116,9 +116,10 @@ class MnistAE():
                 print(
                     f"this is iteration number {ind + 1}/{len(self.trainData)} for epoch number {epoch + 1}/{args.epochs}")
                 currX = img.squeeze()
-                print(f"\n{currX}\n")
+                print(f"\n{currX.shape}\n")
                 if not useRows:
-                    currX = currX.view(self.batchs, args.pixel_seq_size, 1)
+                    currX = currX.view(currX.shape[0], args.pixel_seq_size, 1)
+
                 self.optimizer.zero_grad()
                 currX.to(self.device)
                 output, classed = NN(currX)
