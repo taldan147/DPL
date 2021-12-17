@@ -130,8 +130,8 @@ class MnistAE():
                 self.optimizer.step()
                 currLoss += totalLoss.item()
                 currAcc += self.accuracy(classed, label)
-            avgLoss = currLoss / self.batchs
-            avgACC = currAcc / self.batchs
+            avgLoss = currLoss / (len(self.trainData) / self.batchs)
+            avgACC = currAcc / (len(self.trainData) / self.batchs)
             accuracy.append(avgACC)
             trainLoss.append(avgLoss)
 
@@ -211,13 +211,13 @@ class MnistAE():
         plt.title("Original")
         plt.imshow(figure, cmap='gray')
         plt.show()
-        if not useRows:
-            figure = figure.view(self.batchs, args.pixel_seq_size, 1)
 
-        reconed, label = self.reconstructClass(torch.unsqueeze(figure, 0), useRows)
+        reconed, label = self.reconstructClass(torch.unsqueeze(figure, 0), useRows) if useRows else self.reconstructClass(figure.view(1, args.pixel_seq_size, 1), useRows)
         fixedLabel = np.argmax(label.squeeze().detach().numpy())
         print(fixedLabel)
         plt.title("Reconstructed")
+        if not useRows:
+            reconed = reconed.view(28, 28)
         plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
         plt.show()
 
