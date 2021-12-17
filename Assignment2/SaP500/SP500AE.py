@@ -42,9 +42,10 @@ def splitData(stocks, numGroups):
     trainData = stocksGroups['close'].apply(lambda x: pd.Series(x.values)).unstack()
     trainData.interpolate(inplace=True)
     trainInd, testInd = createRandomIndices(len(trainData), 0.8)
-    dataTensor = toNormal(torch.FloatTensor(trainData.values))
-    trainTensor = dataTensor[0][trainInd]
-    testTensor = dataTensor[0][testInd]
+    trainList = trainData.values[trainInd]
+    testList = trainData.values[testInd]
+    trainTensor = toNormal(torch.FloatTensor(trainList))
+    testTensor = toNormal(torch.FloatTensor(testList))
     trainTensor = np.array_split(trainTensor, numGroups)
     testTensor = np.array_split(testTensor, numGroups)
 
