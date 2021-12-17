@@ -14,7 +14,7 @@ import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=20, help="batch size")
-parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=200, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -29,6 +29,8 @@ dataPath = f"{os.getcwd()}/SP 500 Stock Prices 2014-2017.csv"
 currDir = f"{os.getcwd()}/Sap500"
 netDir = f"{currDir}/SavedNets/Net.pt"
 
+minData = 0
+maxData = 0
 
 def parseData():
     stocks = pd.read_csv(dataPath)
@@ -46,14 +48,15 @@ def splitData(stocks, numGroups):
     trainTensor = toNormal(torch.FloatTensor(trainList))
     testTensor = toNormal(torch.FloatTensor(testList))
     trainTensor = np.array_split(trainTensor, numGroups)
-    testTensor = np.array_split(testTensor, numGroups)
 
     return trainTensor, testTensor
 
 
 def toNormal(data):
-    data -= data.min(1, keepdim=True)[0]
-    data /= data.max(1, keepdim=True)[0]
+    minData = data.min(1, keepdim=True)[0]
+    maxData = data.max(1, keepdim=True)[0]
+    data -= minData
+    data /= maxData
     return data
 
 
@@ -102,7 +105,7 @@ class SP500AE():
             print(f"Finished training. Not saving net")
 
         finalData = validateData.unsqueeze(2)
-        return nn.MSELoss().forward(self.AE(finalData), finalData)
+        return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
 
     def crossValidate(self, data, k):
         trainTensor, testTensor = splitData(data, k)
@@ -117,13 +120,13 @@ class SP500AE():
             endIter = time.perf_counter()
             print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
         bestArg = np.argmin(np.asarray(lossArr))
-        bestTrain = self.prepareData(trainTensor, bestArg)
+        bestTrain, _ = self.prepareData(trainTensor, bestArg)
         bestLoss = self.train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
         endTime = time.perf_counter()
         print(f"the best loss we got was {bestLoss}")
         print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
         print(f"overall time is {(endTime - startTime)/60} minutes")
-        self.plotCrossVal(DataLoader(testTensor, args.batch_size, drop_last=True))
+        self.plotCrossVal(DataLoader(testTensor, 1, drop_last=True))
 
     def prepareData(self, trainTensor, ind):
         currTrain = trainTensor.copy()
@@ -144,7 +147,9 @@ class SP500AE():
         plt.plot(figure)
         plt.show()
 
-        reconstructed = self.reconstruct(figure)
+        reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2))
+        reconstructed += minData
+        reconstructed *= maxData
         reconstructed.squeeze()
         plt.title("reconstructed")
         plt.plot(reconstructed)
