@@ -108,6 +108,7 @@ class SP500AE():
         trainTensor, testTensor = splitData(data, k)
         lossArr = []
         startTime = time.perf_counter()
+        endIter = 0
         for ind in range(k):
             startIter = time.perf_counter()
             currTrain, currValidate = self.prepareData(trainTensor, ind)
@@ -119,6 +120,8 @@ class SP500AE():
         bestTrain = self.prepareData(trainTensor, bestArg)
         bestLoss = self.train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
         endTime = time.perf_counter()
+        print(f"the best loss we got was {bestLoss}")
+        print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
         print(f"overall time is {(endTime - startTime)/60} minutes")
         self.plotCrossVal(DataLoader(testTensor, args.batch_size, drop_last=True))
 
