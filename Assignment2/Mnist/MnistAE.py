@@ -10,16 +10,17 @@ import matplotlib.pyplot as plt
 import time
 import torchvision
 import os
+import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
-parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=32, help="batch size")
+parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
-parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
+parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
+parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=28, help="size of an input")
-parser.add_argument('--dropout', type=float, default=0, help="dropout ratio")
+parser.add_argument('--dropout', type=float, default=0.0,  help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=28, help="size of a seq")
 parser.add_argument('--output_size', type=int, default=28, help="size of the output")
 parser.add_argument('--pixel_output_size', type=int, default=1, help="size of the output PbP")
@@ -35,11 +36,13 @@ pixelDir = f"{currDir}/SavedNets/Pixel.pt"
 
 
 def parseData():
+
+    transform  = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081))])
     trainData = torchvision.datasets.MNIST(root=f'{currDir}/data', train=True, download=True,
-                                           transform=torchvision.transforms.ToTensor())
+                                           transform=transform)
 
     testData = torchvision.datasets.MNIST(root=f'{currDir}/data', train=False, download=True,
-                                          transform=torchvision.transforms.ToTensor())
+                                          transform=transform)
 
     trainLoader = torch.utils.data.DataLoader(dataset=trainData, batch_size=args.batch_size, shuffle=True)
     testLoader = torch.utils.data.DataLoader(dataset=testData, batch_size=1, shuffle=True)
@@ -63,7 +66,7 @@ class MnistAE():
         self.pixel_AEC = AEC.LSTMAE(args.pixel_input_size, args.num_of_layers, args.pixel_seq_size, args.hidden_size,
                                     args.dropout, args.pixel_output_size)
         self.optimizer = torch.optim.Adam(self.AEC.parameters(), args.lr) if (
-                args.optimizer == "Adam") else torch.optim.SGD(self.AEC.parameters(), lr=args.lr)
+                args.optimizer == "Adam") else torch.optim.SGD(self.AEC.parameters(), lr=args.lr)  #TODO define different oprimizer for each LSTM
 
         print(f"using {self.device} as computing unit")
 
@@ -125,13 +128,16 @@ class MnistAE():
                 output, classed = NN(currX)
                 lossClass = nn.CrossEntropyLoss().forward(input=classed.squeeze(), target=label)
                 loss = nn.MSELoss().forward(output, currX)
-                totalLoss = loss + lossClass
+                totalLoss = (loss + lossClass) / 2
                 totalLoss.backward()
                 self.optimizer.step()
                 currLoss += totalLoss.item()
                 currAcc += self.accuracy(classed, label)
+                if ind %300 == 0:
+                    with torch.no_grad():
+                        self.imshow(torchvision.utils.make_grid(output.unsqueeze(1)))
             avgLoss = currLoss / (len(self.trainData) / self.batchs)
-            avgACC = currAcc / (len(self.trainData) / self.batchs)
+            avgACC = currAcc / len(self.trainData)
             accuracy.append(avgACC)
             trainLoss.append(avgLoss)
 
@@ -221,6 +227,8 @@ class MnistAE():
         plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
         plt.show()
 
+
+
         endLoss = time.perf_counter()
         print(f"overall it took {(endLoss - startLoss) / 60} minutes")
 
@@ -228,6 +236,11 @@ class MnistAE():
         newPredict = np.argmax(predict.squeeze().detach().numpy(), axis=1)
         return 1 - np.mean(newPredict != labels.detach().numpy())
 
-
+    def imshow(self, img):
+        #  Amir's show image
+        img = img / 0.3081 + 0.1307
+        numg = img.numpy()
+        plt.imshow(np.transpose(numg, (1, 2, 0)))
+        plt.show()
 saveNet = False
-MnistAE().plotClassification(False)
+MnistAE().plotClassification(True)
