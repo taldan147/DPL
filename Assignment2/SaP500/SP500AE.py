@@ -105,8 +105,15 @@ class SP500AE():
 
 def plotGoogleAmazon():
     stocks = parseData()
-    amazon = stocks.groupby("symbol").groups["AMZN"]
-    google = stocks.groupby("symbol").groups["GOOGL"]
+    google_amazon = stocks[stocks['symbol'].isin(["AMZN", "GOOGL"])]
+    google_amazon = google_amazon.sort_values(by="date")
+    amazon_daily_max = google_amazon[google_amazon.symbol == "AMZN"]['high']
+    google_daily_max = google_amazon[google_amazon.symbol == "GOOGL"]['high']
+    amazon_daily_max.plot(x='date', y='high', title='amazon daily max', xlabel='Time', ylabel='Daily high', label='Amazon')
+    google_daily_max.plot(x='date', y='high', title='google daily max', xlabel='Time', ylabel='Daily high', label='Google')
+    plt.legend()
+    plt.show()
+
 
 
 plotGoogleAmazon()
