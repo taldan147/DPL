@@ -14,14 +14,14 @@ import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=200, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=200, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
-parser.add_argument('--dropout', type=float, default=0.2, help="dropout ratio")
-parser.add_argument('--seq_size', type=int, default=50, help="size of a seq")
+parser.add_argument('--dropout', type=float, default=0, help="dropout ratio")
+parser.add_argument('--seq_size', type=int, default=1007, help="size of a seq")
 parser.add_argument('--output_size', type=int, default=1, help="size of the output")
 args = parser.parse_args()
 
@@ -88,10 +88,10 @@ class SP500AE():
 
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch + 1}")
-            for ind, (img, label) in enumerate(trainLoader):
+            for ind, tensor in enumerate(trainLoader):
                 print(
                     f"this is iteration number {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
-                currX = img.squeeze()
+                currX = tensor.unsqueeze(2)
                 self.optimizer.zero_grad()
                 currX.to(self.device)
                 output = self.AE.forward(currX)
@@ -110,52 +110,47 @@ class SP500AE():
     def crossValidate(self, data, k):
         trainTensor, testTensor = splitData(data, k)
         lossArr = []
-        for i in range(k):
-            currTrain = trainTensor.copy()
-            currValidate = currTrain.pop(i)
-            currTrain = torch.stack(currTrain)
-            currTrain = torch.flatten(currTrain, 0, 1)
+        startTime = time.perf_counter()
+        for ind in range(k):
+            startIter = time.perf_counter()
+            currTrain, currValidate = self.prepareData(trainTensor, ind)
             trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
             lossArr.append(self.train(trainLoader, currValidate))
-        bestTrain = np.argmin(np.asarray(lossArr))
-        # self.train()
-        # self.plotCrossVal()
+            endIter = time.perf_counter()
+            print(f"the {k+1} iteration took {(endIter - startIter)/60} mintues")
+        bestArg = np.argmin(np.asarray(lossArr))
+        bestTrain = self.prepareData(trainTensor, bestArg)
+        bestLoss = self.train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
+        endTime = time.perf_counter()
+        print(f"overall time is {(endTime - startTime)/60} minutes")
+        self.plotCrossVal(DataLoader(testTensor, args.batch_size, drop_last=True))
+
+    def prepareData(self, trainTensor, ind):
+        currTrain = trainTensor.copy()
+        currValidate = currTrain.pop(ind)
+        currTrain = torch.stack(currTrain)
+        currTrain = torch.flatten(currTrain, 0, 1)
+        return currTrain, currValidate
 
     def reconstruct(self, data):
         data.to(self.device)
         return self.AE.forward(data)
 
-    def plotCrossVal(self, trainLoader, fullTrain):
-
-        startLoss = time.perf_counter()
-
-        loss = self.train(trainLoader, fullTrain)
-        plt.figure()
-        plt.title("Loss on Cross Validation")
-        plt.plot(np.arange(self.epochs), loss)
+    def plotCrossVal(self, testData):
+        dataIter = iter(testData)
+        figure = dataIter.next()
+        figure = figure.squeeze()
+        plt.title("Original")
+        plt.plot(figure)
         plt.show()
 
-        endLoss = time.perf_counter()
-
-        reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
-
-        plt.figure()
-        plt.title("reconstruction")
-        plt.plot(reconstruct[0], label="reconstructed")
-        plt.plot(self.trainData[0], label="Data")
+        reconstructed = self.reconstruct(figure)
+        reconstructed.squeeze()
+        plt.title("reconstructed")
+        plt.plot(reconstructed)
         plt.show()
 
-        endReconstruct = time.perf_counter()
 
-        print("The parameters of the NN are:")
-        print(
-            f"layers - {args.num_of_layers}\nepochs - {args.epochs}\nbatch size - {args.batch_size}\nlearning rate - {args.lr}\noptimizer - {args.optimizer}\n")
-        print(f"the loss calc took {(endLoss - startLoss) / 60} minutes")
-        print(f"the reconstruct calc took {(endReconstruct - endLoss) / 60} minutes")
-        print(f"overall it took {(endReconstruct - startLoss) / 60} minutes")
-
-
-# ToyAE().plotNN()
 
 def plotGoogleAmazon():
     stocks = parseData()
@@ -171,5 +166,5 @@ def plotGoogleAmazon():
     plt.show()
 
 
-SP500AE().crossValidate(parseData(), 5)
+SP500AE().crossValidate(parseData(), 4)
 # plotGoogleAmazon()
