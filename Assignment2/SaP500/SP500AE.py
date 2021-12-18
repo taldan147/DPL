@@ -13,15 +13,15 @@ import time
 import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=20, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=32, help="batch size")
+parser.add_argument('--epochs', type=int, default=300, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=200, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
 parser.add_argument('--dropout', type=float, default=0, help="dropout ratio")
-parser.add_argument('--seq_size', type=int, default=1007, help="size of a seq")
+parser.add_argument('--seq_size', type=int, default=53, help="size of a seq")
 parser.add_argument('--output_size', type=int, default=1, help="size of the output")
 args = parser.parse_args()
 
@@ -42,9 +42,10 @@ def splitData(stocks, numGroups):
     stocksGroups = stocks.groupby('symbol')
     trainData = stocksGroups['close'].apply(lambda x: pd.Series(x.values)).unstack()
     trainData.interpolate(inplace=True)
-    trainInd, testInd = createRandomIndices(len(trainData), 0.8)
-    trainList = trainData.values[trainInd]
-    testList = trainData.values[testInd]
+    splittedStocksValues = np.row_stack(np.asarray(np.array_split(trainData.values, 19, axis=1)))
+    trainInd, testInd = createRandomIndices(len(splittedStocksValues), 0.8)
+    trainList = splittedStocksValues[trainInd]
+    testList = splittedStocksValues[testInd]
     trainTensor = toNormal(torch.FloatTensor(trainList))
     testTensor = toNormal(torch.FloatTensor(testList))
     trainTensor = np.array_split(trainTensor, numGroups)
@@ -84,9 +85,10 @@ class SP500AE():
         print("Starting Train")
         if saveNet:
             print("Will save net!")
-
+        lossArr = []
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch + 1}")
+            currLoss = []
             for ind, tensor in enumerate(trainLoader):
                 print(
                     f"this is iteration number {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
@@ -97,6 +99,11 @@ class SP500AE():
                 loss = nn.MSELoss().forward(output, currX)
                 loss.backward()
                 self.optimizer.step()
+                currLoss.append(loss.item())
+                if ind % 100 == 0:
+                    self.plotSignal(currX[0])
+            lossArr.append(np.mean(np.asarray(currLoss)))
+            self.plotLoss(lossArr)
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
@@ -139,6 +146,17 @@ class SP500AE():
         data.to(self.device)
         return self.AE.forward(data)
 
+    def plotSignal(self, signal):
+        signal = signal.squeeze()
+        plt.title("Original")
+        plt.plot(signal)
+        plt.show()
+
+        reconstructed = self.reconstruct(signal.unsqueeze(0).unsqueeze(2))
+        plt.title("reconstructed")
+        plt.plot(reconstructed.squeeze().detach().numpy())
+        plt.show()
+
     def plotCrossVal(self, testData):
         dataIter = iter(testData)
         figure = dataIter.next()
@@ -148,11 +166,14 @@ class SP500AE():
         plt.show()
 
         reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2))
-        reconstructed += minData
-        reconstructed *= maxData
-        reconstructed.squeeze()
         plt.title("reconstructed")
-        plt.plot(reconstructed)
+        plt.plot(reconstructed.squeeze().detach().numpy())
+        plt.show()
+
+    def plotLoss(self, loss):
+        plt.figure()
+        plt.plot(loss)
+        plt.title("stocks temp loss")
         plt.show()
 
 
@@ -171,5 +192,5 @@ def plotGoogleAmazon():
     plt.show()
 
 
-SP500AE().crossValidate(parseData(), 4)
+SP500AE().crossValidate(parseData(), 2)
 # plotGoogleAmazon()

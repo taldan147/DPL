@@ -13,14 +13,14 @@ import os
 import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
-parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=64, help="batch size")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
-parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
+parser.add_argument('--hidden_size', type=int, default=200, help="lstm hidden size")
+parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=28, help="size of an input")
-parser.add_argument('--dropout', type=float, default=0.0,  help="dropout ratio")
+parser.add_argument('--dropout', type=float, default=0.2,  help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=28, help="size of a seq")
 parser.add_argument('--output_size', type=int, default=28, help="size of the output")
 parser.add_argument('--pixel_output_size', type=int, default=1, help="size of the output PbP")
@@ -65,7 +65,7 @@ class MnistAE():
                               args.output_size)
         self.pixel_AEC = AEC.LSTMAE(args.pixel_input_size, args.num_of_layers, args.pixel_seq_size, args.hidden_size,
                                     args.dropout, args.pixel_output_size)
-        self.optimizer = torch.optim.Adam(self.AEC.parameters(), args.lr) if (
+        self.optimizer = torch.optim.Adam(self.pixel_AEC.parameters(), args.lr) if (
                 args.optimizer == "Adam") else torch.optim.SGD(self.AEC.parameters(), lr=args.lr)  #TODO define different oprimizer for each LSTM
 
         print(f"using {self.device} as computing unit")
@@ -115,6 +115,8 @@ class MnistAE():
             print(f"this is epoch number {epoch + 1}")
             currLoss = 0
             currAcc = 0
+            lossArr = [] # temp variable
+            accArr = []
             for ind, (img, label) in enumerate(self.trainData):
                 print(
                     f"this is iteration number {ind + 1}/{len(self.trainData)} for epoch number {epoch + 1}/{args.epochs}")
@@ -122,6 +124,7 @@ class MnistAE():
                 print(f"\n{currX.shape}\n")
                 if not useRows:
                     currX = currX.view(currX.shape[0], args.pixel_seq_size, 1)
+
 
                 self.optimizer.zero_grad()
                 currX.to(self.device)
@@ -132,11 +135,20 @@ class MnistAE():
                 totalLoss.backward()
                 self.optimizer.step()
                 currLoss += totalLoss.item()
-                currAcc += self.accuracy(classed, label)
-                if ind %300 == 0:
-                    with torch.no_grad():
-                        self.imshow(torchvision.utils.make_grid(output.unsqueeze(1)))
-            avgLoss = currLoss / (len(self.trainData) / self.batchs)
+                acc = self.accuracy(classed, label)
+                currAcc += acc
+                lossArr.append(totalLoss.item())
+                accArr.append(acc)
+                self.plotLoss(accArr, "curr accuracy mnist")
+                self.plotLoss(lossArr, "curr loss mnist")
+
+                # if ind % 500 == 0:
+                #     self.showOneImg(output[0], "reconstructed")
+                #     self.showOneImg(currX[0], "orig")
+                    # with torch.no_grad():
+                    #     self.imshow(torchvision.utils.make_grid(currX.unsqueeze(1)), "original", useRows)
+                    #     self.imshow(torchvision.utils.make_grid(output.unsqueeze(1)), "recontructed", useRows)
+            avgLoss = currLoss / len(self.trainData)
             avgACC = currAcc / len(self.trainData)
             accuracy.append(avgACC)
             trainLoss.append(avgLoss)
@@ -224,6 +236,7 @@ class MnistAE():
         plt.title("Reconstructed")
         if not useRows:
             reconed = reconed.view(28, 28)
+        reconed = reconed / 0.3081 + 0.1307
         plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
         plt.show()
 
@@ -236,11 +249,28 @@ class MnistAE():
         newPredict = np.argmax(predict.squeeze().detach().numpy(), axis=1)
         return 1 - np.mean(newPredict != labels.detach().numpy())
 
-    def imshow(self, img):
+    def imshow(self, img, title, useRows):
         #  Amir's show image
         img = img / 0.3081 + 0.1307
         numg = img.numpy()
         plt.imshow(np.transpose(numg, (1, 2, 0)))
+        plt.title(title)
         plt.show()
+
+    def showOneImg(self, img, title):
+
+        img = img / 0.3081 + 0.1307
+        # reconed = img.view(28, 28)
+        plt.imshow(img.squeeze().detach().numpy().reshape(28,28), cmap='gray')
+        plt.title(title)
+        plt.show()
+
+    def plotLoss(self, loss, title):
+        plt.figure()
+        plt.plot(loss)
+        plt.title(title)
+        plt.show()
+
+
 saveNet = False
-MnistAE().plotClassification(True)
+MnistAE().plotClassification(False)
