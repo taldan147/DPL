@@ -127,7 +127,7 @@ class SP500AE():
         data.to(self.device)
         return self.AE.forward(data)
 
-    def plotSignal(self, signal, epoch):
+    def plotSignal(self, signal):
         signal = signal.squeeze()
         plt.title("Original")
         plt.plot(signal)
@@ -178,6 +178,7 @@ def crossValidate(data, k):
     startTime = time.perf_counter()
     endIter = 0
     for ind in range(k):
+        print(f"Starting the {ind+1} validation set")
         sp500 = SP500AE()
         startIter = time.perf_counter()
         currTrain, currValidate = sp500.prepareData(trainTensor, ind)
@@ -187,6 +188,7 @@ def crossValidate(data, k):
         print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
     bestArg = np.argmin(np.asarray(lossArr))
     bestTrain, _ = sp500.prepareData(trainTensor, bestArg)
+    print(f"Starting full train")
     bestLoss = SP500AE().train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
     endTime = time.perf_counter()
     print(f"the best loss we got was {bestLoss}")
