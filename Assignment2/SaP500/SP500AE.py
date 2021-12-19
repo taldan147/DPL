@@ -150,12 +150,12 @@ class SP500AE():
         signal = signal.squeeze()
         plt.title("Original")
         plt.plot(signal)
-        plt.show()
+        plt.savefig(f"Plots/OriginalSignal.png")
 
         reconstructed = self.reconstruct(signal.unsqueeze(0).unsqueeze(2))
         plt.title("reconstructed")
         plt.plot(reconstructed.squeeze().detach().numpy())
-        plt.show()
+        plt.savefig(f"Plots/ReconstructSignal.png")
 
     def plotCrossVal(self, testData):
         dataIter = iter(testData)
@@ -163,18 +163,18 @@ class SP500AE():
         figure = figure.squeeze()
         plt.title("Original")
         plt.plot(figure)
-        plt.show()
+        plt.savefig(f"Plots/OriginalCrossVal.png")
 
         reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2))
-        plt.title("reconstructed")
+        plt.title("Reconstructed")
         plt.plot(reconstructed.squeeze().detach().numpy())
-        plt.show()
+        plt.savefig(f"Plots/ReconstructCrossVal.png")
 
     def plotLoss(self, loss):
         plt.figure()
         plt.plot(loss)
         plt.title("stocks temp loss")
-        plt.show()
+        plt.savefig(f"Plots/TempLossPlot.png")
 
 
 
@@ -189,8 +189,8 @@ def plotGoogleAmazon():
     google_daily_max.plot(x='date', y='high', title='google daily max', xlabel='Time', ylabel='Daily high',
                           label='Google')
     plt.legend()
-    plt.show()
+    plt.savefig(f"Plots/GOOGLAMZN.png")
 
 
 SP500AE().crossValidate(parseData(), 2)
-# plotGoogleAmazon()
+#plotGoogleAmazon()
