@@ -114,26 +114,7 @@ class SP500AE():
         finalData = validateData.unsqueeze(2)
         return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
 
-    def crossValidate(self, data, k):
-        trainTensor, testTensor = splitData(data, k)
-        lossArr = []
-        startTime = time.perf_counter()
-        endIter = 0
-        for ind in range(k):
-            startIter = time.perf_counter()
-            currTrain, currValidate = self.prepareData(trainTensor, ind)
-            trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
-            lossArr.append(self.train(trainLoader, currValidate))
-            endIter = time.perf_counter()
-            print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
-        bestArg = np.argmin(np.asarray(lossArr))
-        bestTrain, _ = self.prepareData(trainTensor, bestArg)
-        bestLoss = self.train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
-        endTime = time.perf_counter()
-        print(f"the best loss we got was {bestLoss}")
-        print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
-        print(f"overall time is {(endTime - startTime)/60} minutes")
-        self.plotCrossVal(DataLoader(testTensor, 1, drop_last=True))
+
 
     def prepareData(self, trainTensor, ind):
         currTrain = trainTensor.copy()
@@ -146,7 +127,7 @@ class SP500AE():
         data.to(self.device)
         return self.AE.forward(data)
 
-    def plotSignal(self, signal):
+    def plotSignal(self, signal, epoch):
         signal = signal.squeeze()
         plt.title("Original")
         plt.plot(signal)
@@ -191,6 +172,27 @@ def plotGoogleAmazon():
     plt.legend()
     plt.savefig(f"Plots/GOOGLAMZN.png")
 
+def crossValidate(data, k):
+    trainTensor, testTensor = splitData(data, k)
+    lossArr = []
+    startTime = time.perf_counter()
+    endIter = 0
+    for ind in range(k):
+        sp500 = SP500AE()
+        startIter = time.perf_counter()
+        currTrain, currValidate = sp500.prepareData(trainTensor, ind)
+        trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
+        lossArr.append(sp500.train(trainLoader, currValidate))
+        endIter = time.perf_counter()
+        print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
+    bestArg = np.argmin(np.asarray(lossArr))
+    bestTrain, _ = sp500.prepareData(trainTensor, bestArg)
+    bestLoss = SP500AE().train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
+    endTime = time.perf_counter()
+    print(f"the best loss we got was {bestLoss}")
+    print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
+    print(f"overall time is {(endTime - startTime)/60} minutes")
+    sp500.plotCrossVal(DataLoader(testTensor, 1, drop_last=True))
 
-SP500AE().crossValidate(parseData(), 2)
-#plotGoogleAmazon()
+crossValidate(parseData(),4)
+# plotGoogleAmazon()
