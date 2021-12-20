@@ -15,7 +15,7 @@ import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -104,7 +104,7 @@ class SP500AE():
                 self.optimizer.step()
                 currLoss.append(loss.item())
                 if ind % 100 == 0:
-                    self.plotSignal(currX[0])
+                    self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
             self.plotLoss(lossArr, "Stocks Temp Loss")
 
@@ -147,7 +147,7 @@ class SP500AE():
                 currLossRecon.append(lossRecon.item())
                 currLossPred.append(lossPred.item())
                 if ind % 100 == 0:
-                    self.plotSignal(currX[0])
+                    self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
             lossReconArr.append(np.mean(np.asarray(currLossRecon)))
             lossPredArr.append(np.mean(np.asarray(currLossPred)))
@@ -162,9 +162,21 @@ class SP500AE():
         finalData = validateData.unsqueeze(2)
         return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
 
-    def testPredict(self,dataLoader ,savePlt=False):
+    def testPredict(self, dataLoader, savePlt=False):
+        predKeeper = []
+        loss = []
+        interval = dataLoader.shape[1] - math.floor(dataLoader.shape[1]/2)
+        for i in range(math.floor(dataLoader.shape[1]/2)):
+            currX = dataLoader[:, i: i+interval]
+            output, predict = self.AEPred(currX)
+            predKeeper.append(predict[:, -1])
+            currLoss = nn.MSELoss().forward(input=predict[-1], target=dataLoader[:, i+interval])
+            loss.append(currLoss.item())
+        return predKeeper, np.mean(np.asarray(loss))
 
-    #splits the data for the CrossValidate
+
+
+    # splits the data for the CrossValidate
     def prepareDataCrossValidate(self, trainTensor, ind):
         currTrain = trainTensor.copy()
         currValidate = currTrain.pop(ind)
@@ -176,14 +188,14 @@ class SP500AE():
         data.to(self.device)
         return self.AE.forward(data)
 
-    def plotSignal(self, signal):
+    def plotSignal(self, signal, title):
         signal = signal.squeeze()
         plt.title("Original")
         plt.plot(signal)
         plt.show()
 
         reconstructed = self.reconstruct(signal.unsqueeze(0).unsqueeze(2))
-        plt.title("reconstructed")
+        plt.title(title)
         plt.plot(reconstructed.squeeze().detach().numpy())
         plt.savefig(f"Plots/ReconstructSignal.png")
         plt.show()
@@ -226,7 +238,26 @@ class SP500AE():
 
     def runPrediction(self, savePlt=False):
         data, test = splitData(parseData(), 1)
-        self.trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test, False)
+        # self.trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test, False)
+        multiPredKeeper, multiLoss = self.testPredict(test.unsqueeze(2))
+        reconed = self.reconstruct(test.unsqueeze(2)).squeeze()
+
+        multiPredKeeper = torch.stack(multiPredKeeper, dim=1)
+        firstHalf = (test.shape[1] - math.floor(test.shape[1]/2))+1
+        multiPredFull = torch.cat((test[:, 1: firstHalf], multiPredKeeper), dim=1)
+
+        plt.figure()
+        plt.title("Reconstructed vs Multi Predticted")
+        plt.plot(reconed.detach().numpy(), label="Reconstructed", color="blue")
+        plt.plot(multiPredFull.detach().numpy(), label="Multi Predicted", color="tomato")
+        plt.legend()
+        if savePlt:
+            plt.savefig(f"Plots/multiPredict.png")
+        plt.show()
+
+
+
+
 
 
 def plotGoogleAmazon(savePlt=False):
