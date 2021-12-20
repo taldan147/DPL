@@ -253,7 +253,7 @@ class MnistAE():
         newPredict = np.argmax(predict.squeeze().detach().numpy(), axis=1)
         return 1 - np.mean(newPredict != labels.detach().numpy())
 
-    def imshow(self, img, title, useRows):
+    def imshow(self, img, title, useRows):      #TODO: DELETE THIS!!
         #  Amir's show image
         img = img / 0.3081 + 0.1307
         numg = img.numpy()
