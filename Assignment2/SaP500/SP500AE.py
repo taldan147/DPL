@@ -39,6 +39,7 @@ def parseData():
 def splitData(stocks, numGroups):
     stocks = stocks[["symbol", "close"]]
     stocksGroups = stocks.groupby('symbol')
+    stocksNames = stocksGroups['symbol'].apply(lambda x: pd.Series(x.values)).unstack()
     trainData = stocksGroups['close'].apply(lambda x: pd.Series(x.values)).unstack()
     trainData.interpolate(inplace=True)
     splittedStocksValues = np.row_stack(np.asarray(np.array_split(trainData.values, 19, axis=1)))
@@ -46,6 +47,22 @@ def splitData(stocks, numGroups):
     trainList = splittedStocksValues[trainInd]
     testList = splittedStocksValues[testInd]
     trainTensor = toNormal(torch.FloatTensor(trainList))
+    testTensor = toNormal(torch.FloatTensor(testList))
+    trainTensor = np.array_split(trainTensor, numGroups)
+
+    return trainTensor, testTensor
+
+
+def splitDataByName(stocks, numGroups):
+    stocks = stocks[["symbol", "close"]]
+    stocksGroups = stocks.groupby('symbol')
+    data = stocksGroups['close'].apply(lambda x: pd.Series(x.values)).unstack()
+    data.interpolate(inplace=True)
+    trainInd, testInd = createRandomIndices(len(data.values), 0.8)
+    trainList = data.values[trainInd]
+    testList = data.values[testInd]
+    trainData = np.row_stack(np.asarray(np.array_split(trainList, 19, axis=1)))
+    trainTensor = toNormal(torch.FloatTensor(trainData))
     testTensor = toNormal(torch.FloatTensor(testList))
     trainTensor = np.array_split(trainTensor, numGroups)
 
