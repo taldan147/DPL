@@ -15,7 +15,7 @@ import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=200, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=20, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -168,7 +168,7 @@ class SP500AE():
             lossArr.append(np.mean(np.asarray(currLoss)))
             lossReconArr.append(np.mean(np.asarray(currLossRecon)))
             lossPredArr.append(np.mean(np.asarray(currLossPred)))
-            self.plotPred(lossArr, lossReconArr, lossPredArr, savePlt)          #3.2
+        self.plotPred(lossArr, lossReconArr, lossPredArr, savePlt)          #3.2
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
