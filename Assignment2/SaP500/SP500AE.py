@@ -163,8 +163,8 @@ class SP500AE():
                 currLoss.append(loss.item())
                 currLossRecon.append(lossRecon.item())
                 currLossPred.append(lossPred.item())
-                if ind % 500 == 0:
-                    self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
+                # if ind % 500 == 0:
+                #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
             lossReconArr.append(np.mean(np.asarray(currLossRecon)))
             lossPredArr.append(np.mean(np.asarray(currLossPred)))
@@ -277,11 +277,6 @@ class SP500AE():
         if savePlt:
             plt.savefig(f"Plots/multiPredict.png")
         plt.show()
-
-
-
-
-
 
 
 
