@@ -215,11 +215,15 @@ class MnistAE():
 
         plt.figure()
         plt.title("Classification Loss")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
         plt.plot(np.arange(self.epochs), trainLoss)
         plt.show()
 
         plt.figure()
         plt.title("Accuracy")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
         plt.plot(np.arange(self.epochs), accuracy)
         plt.show()
 
@@ -269,6 +273,8 @@ class MnistAE():
         plt.figure()
         plt.plot(loss)
         plt.title(title)
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
         plt.show()
 
 
