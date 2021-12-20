@@ -117,7 +117,7 @@ class SP500AE():
         finalData = validateData.unsqueeze(2)
         return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
 
-    def trainPredict(self, trainLoader, validateData, saveNet=False):
+    def trainPredict(self, trainLoader, validateData, saveNet=False, savePlt=False):
         self.AEPred.to(self.device)
         print("Starting Train For Prediction")
         if saveNet:
@@ -151,7 +151,7 @@ class SP500AE():
             lossArr.append(np.mean(np.asarray(currLoss)))
             lossReconArr.append(np.mean(np.asarray(currLossRecon)))
             lossPredArr.append(np.mean(np.asarray(currLossPred)))
-            self.plotPred(lossArr, lossReconArr, lossPredArr)
+            self.plotPred(lossArr, lossReconArr, lossPredArr, savePlt)
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
@@ -161,6 +161,8 @@ class SP500AE():
 
         finalData = validateData.unsqueeze(2)
         return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
+
+    def testPredict(self,dataLoader ,savePlt=False):
 
     #splits the data for the CrossValidate
     def prepareDataCrossValidate(self, trainTensor, ind):
@@ -178,7 +180,6 @@ class SP500AE():
         signal = signal.squeeze()
         plt.title("Original")
         plt.plot(signal)
-        plt.savefig(f"Plots/OriginalSignal.png")
         plt.show()
 
         reconstructed = self.reconstruct(signal.unsqueeze(0).unsqueeze(2))
@@ -187,7 +188,7 @@ class SP500AE():
         plt.savefig(f"Plots/ReconstructSignal.png")
         plt.show()
 
-    def plotCrossVal(self, testData):
+    def plotCrossVal(self, testData, savePlt=False):
         dataIter = iter(testData)
         figure = dataIter.next()
         figure = figure.squeeze()
@@ -195,7 +196,8 @@ class SP500AE():
         plt.plot(figure)
         plt.xlabel("Date")
         plt.ylabel("Closing Rate")
-        plt.savefig(f"Plots/OriginalCrossVal.png")
+        if savePlt:
+            plt.savefig(f"Plots/OriginalCrossVal.png")
         plt.show()
 
         reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2))
@@ -203,26 +205,31 @@ class SP500AE():
         plt.plot(reconstructed.squeeze().detach().numpy())
         plt.xlabel("Date")
         plt.ylabel("Closing Rate")
-        plt.savefig(f"Plots/ReconstructCrossVal.png")
+        if savePlt:
+            plt.savefig(f"Plots/ReconstructCrossVal.png")
         plt.show()
 
-    def plotLoss(self, loss, title):
+    def plotLoss(self, loss, title, savePlt=False):
         plt.figure()
         plt.plot(loss)
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.title(title)
-        plt.savefig(f"Plots/{title}.png")
+        if savePlt:
+            plt.savefig(f"Plots/{title}.png")
         plt.show()
 
-    def plotPred(self, totalLoss, reconLoss, predLoss):
-        self.plotLoss(totalLoss, "Total Loss")
-        self.plotLoss(reconLoss, "Reconstruction Loss")
-        self.plotLoss(predLoss, "Prediction Loss")
+    def plotPred(self, totalLoss, reconLoss, predLoss, savePlt=False):
+        self.plotLoss(totalLoss, "Total Loss", savePlt)
+        self.plotLoss(reconLoss, "Reconstruction Loss", savePlt)
+        self.plotLoss(predLoss, "Prediction Loss", savePlt)
+
+    def runPrediction(self, savePlt=False):
+        data, test = splitData(parseData(), 1)
+        self.trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test, False)
 
 
-
-def plotGoogleAmazon():
+def plotGoogleAmazon(savePlt=False):
     stocks = parseData()
     google_amazon = stocks[stocks['symbol'].isin(["AMZN", "GOOGL"])]
     google_amazon = google_amazon.sort_values(by="date")
@@ -233,10 +240,11 @@ def plotGoogleAmazon():
     google_daily_max.plot(x='date', y='high', title='google daily max', xlabel='Time', ylabel='Daily high',
                           label='Google')
     plt.legend()
-    plt.savefig(f"Plots/GOOGLAMZN.png")
+    if savePlt:
+        plt.savefig(f"Plots/GOOGLAMZN.png")
     plt.show()
 
-def crossValidate(data, k):
+def crossValidate(data, k, savePlt=False):
     trainTensor, testTensor = splitData(data, k)
     lossArr = []
     startTime = time.perf_counter()
@@ -258,16 +266,11 @@ def crossValidate(data, k):
     print(f"the best loss we got was {bestLoss}")
     print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
     print(f"overall time is {(endTime - startTime)/60} minutes")
-    sp500.plotCrossVal(DataLoader(testTensor, 1, drop_last=True))
-
-def runPrediction():
-    data, test = splitData(parseData(), 1)
-    SP500AE().trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test)
-
+    sp500.plotCrossVal(DataLoader(testTensor, 1, drop_last=True), savePlt)
 
 
 # crossValidate(parseData(),4)
 # plotGoogleAmazon()
-runPrediction()
+SP500AE().runPrediction()
 
 #TODO: change date to time!
