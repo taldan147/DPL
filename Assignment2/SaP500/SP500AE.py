@@ -29,14 +29,12 @@ dataPath = f"{os.getcwd()}/SP 500 Stock Prices 2014-2017.csv"
 currDir = f"{os.getcwd()}/Sap500"
 netDir = f"{currDir}/SavedNets/Net.pt"
 
-minData = 0
-maxData = 0
 
 def parseData():
     stocks = pd.read_csv(dataPath)
     return stocks.sort_values(by='date')
 
-
+    #splits the raw data by symbol and keep the close
 def splitData(stocks, numGroups):
     stocks = stocks[["symbol", "close"]]
     stocksGroups = stocks.groupby('symbol')
@@ -114,9 +112,8 @@ class SP500AE():
         finalData = validateData.unsqueeze(2)
         return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
 
-
-
-    def prepareData(self, trainTensor, ind):
+    #splits the data for the CrossValidate
+    def prepareDataCrossValidate(self, trainTensor, ind):
         currTrain = trainTensor.copy()
         currValidate = currTrain.pop(ind)
         currTrain = torch.stack(currTrain)
@@ -164,7 +161,7 @@ class SP500AE():
         plt.plot(loss)
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.title("stocks temp loss")
+        plt.title("Stocks Temp Loss")
         plt.savefig(f"Plots/TempLossPlot.png")
         plt.show()
 
@@ -193,13 +190,13 @@ def crossValidate(data, k):
         print(f"Starting the {ind+1} validation set")
         sp500 = SP500AE()
         startIter = time.perf_counter()
-        currTrain, currValidate = sp500.prepareData(trainTensor, ind)
+        currTrain, currValidate = sp500.prepareDataCrossValidate(trainTensor, ind)
         trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
         lossArr.append(sp500.train(trainLoader, currValidate))
         endIter = time.perf_counter()
         print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
     bestArg = np.argmin(np.asarray(lossArr))
-    bestTrain, _ = sp500.prepareData(trainTensor, bestArg)
+    bestTrain, _ = sp500.prepareDataCrossValidate(trainTensor, bestArg)
     print(f"Starting full train")
     bestLoss = SP500AE().train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
     endTime = time.perf_counter()

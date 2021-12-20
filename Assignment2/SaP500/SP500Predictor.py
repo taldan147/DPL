@@ -22,15 +22,15 @@ class Decoder(nn.Module):
         self.hs_size = hs_size
         self.dropout = dropout
         self.seq_size = seq_size
-        self.pred_size = 1
+        self.pred_size = seq_size
         self.linear = nn.Linear(hs_size, output_size)
-        self.linearClass = nn.Linear(hs_size, self.pred_size)
+        self.linearPred = nn.Linear(hs_size, self.pred_size)
         self.lstmDecoder = nn.LSTM(hs_size, hs_size, batch_first=True, dropout=dropout)
 
     def forward(self, x: torch.tensor):
         x = x.repeat(1, self.seq_size, 1)
         output, (hidden, _) = self.lstmDecoder(x)
-        return self.linear(output), self.linearClass(hidden)
+        return self.linear(output), self.linearPred(hidden)
 
 class LSTMAE(nn.Module):
     def __init__(self, input_size, num_of_layers, seq_size, hs_size, dropout, output_size):
