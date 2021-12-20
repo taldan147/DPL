@@ -30,7 +30,7 @@ class Decoder(nn.Module):
     def forward(self, x: torch.tensor):
         x = x.repeat(1, self.seq_size, 1)
         output, (hidden, _) = self.lstmDecoder(x)
-        return self.linear(output), self.linearPred(hidden)
+        return self.linear(output), self.linearPred(hidden).squeeze()
 
 class LSTMAE(nn.Module):
     def __init__(self, input_size, num_of_layers, seq_size, hs_size, dropout, output_size):

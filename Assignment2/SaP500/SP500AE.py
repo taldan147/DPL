@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import LSTM_AE as AE
+import SP500Predictor as predAE
 import argparse
 import numpy as np
 import torch.nn as nn
@@ -14,7 +15,7 @@ import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -75,6 +76,10 @@ class SP500AE():
                             args.output_size)
         self.optimizer = torch.optim.Adam(self.AE.parameters(), args.lr) if (
                     args.optimizer == "Adam") else torch.optim.SGD(self.AE.parameters(), lr=args.lr)
+        self.AEPred = predAE.LSTMAE(args.input_size, args.num_of_layers, args.seq_size-1, args.hidden_size, args.dropout,
+                            args.output_size)
+        self.optimizerPred = torch.optim.Adam(self.AEPred.parameters(), args.lr) if (
+                    args.optimizer == "Adam") else torch.optim.SGD(self.AEPred.parameters(), lr=args.lr)
 
         print(f"using {self.device} as computing unit")
 
@@ -101,7 +106,52 @@ class SP500AE():
                 if ind % 100 == 0:
                     self.plotSignal(currX[0])
             lossArr.append(np.mean(np.asarray(currLoss)))
-            self.plotLoss(lossArr)
+            self.plotLoss(lossArr, "Stocks Temp Loss")
+
+        if saveNet:
+            torch.save(self.AE.state_dict(), netDir)
+            print(f"Finished training. Saving net at {netDir}")
+        else:
+            print(f"Finished training. Not saving net")
+
+        finalData = validateData.unsqueeze(2)
+        return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
+
+    def trainPredict(self, trainLoader, validateData, saveNet=False):
+        self.AEPred.to(self.device)
+        print("Starting Train For Prediction")
+        if saveNet:
+            print("Will save net!")
+        lossArr = []
+        lossReconArr = []
+        lossPredArr = []
+        for epoch in range(self.epochs):
+            print(f"this is epoch number {epoch + 1}")
+            currLoss = []
+            currLossRecon = []
+            currLossPred = []
+            for ind, tensor in enumerate(trainLoader):
+                print(f"this is iteration number {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
+                currX = tensor.unsqueeze(2)[:,: -1]
+                currY = tensor.unsqueeze(2)[:,1 :]
+
+                self.optimizerPred.zero_grad()
+                currX.to(self.device)
+                output, pred = self.AEPred(currX)
+                lossRecon = nn.MSELoss().forward(output, currX)
+                lossPred = nn.MSELoss().forward(pred.unsqueeze(2), currY)
+                loss = lossPred + lossRecon
+                loss.backward()
+                self.optimizerPred.step()
+                currLoss.append(loss.item())
+                currLossRecon.append(lossRecon.item())
+                currLossPred.append(lossPred.item())
+                if ind % 100 == 0:
+                    self.plotSignal(currX[0])
+            lossArr.append(np.mean(np.asarray(currLoss)))
+            lossReconArr.append(np.mean(np.asarray(currLossRecon)))
+            lossPredArr.append(np.mean(np.asarray(currLossPred)))
+            self.plotPred(lossArr, lossReconArr, lossPredArr)
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
@@ -156,14 +206,19 @@ class SP500AE():
         plt.savefig(f"Plots/ReconstructCrossVal.png")
         plt.show()
 
-    def plotLoss(self, loss):
+    def plotLoss(self, loss, title):
         plt.figure()
         plt.plot(loss)
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.title("Stocks Temp Loss")
-        plt.savefig(f"Plots/TempLossPlot.png")
+        plt.title(title)
+        plt.savefig(f"Plots/{title}.png")
         plt.show()
+
+    def plotPred(self, totalLoss, reconLoss, predLoss):
+        self.plotLoss(totalLoss, "Total Loss")
+        self.plotLoss(reconLoss, "Reconstruction Loss")
+        self.plotLoss(predLoss, "Prediction Loss")
 
 
 
@@ -205,5 +260,14 @@ def crossValidate(data, k):
     print(f"overall time is {(endTime - startTime)/60} minutes")
     sp500.plotCrossVal(DataLoader(testTensor, 1, drop_last=True))
 
-crossValidate(parseData(),4)
+def runPrediction():
+    data, test = splitData(parseData(), 1)
+    SP500AE().trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test)
+
+
+
+# crossValidate(parseData(),4)
 # plotGoogleAmazon()
+runPrediction()
+
+#TODO: change date to time!
