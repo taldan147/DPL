@@ -102,7 +102,7 @@ class MnistAE():
 
         return trainLoss
 
-    def trainClassification(self, useRows, saveNet):
+    def trainClassification(self, useRows, saveNet, savePlt=False):
         trainLoss = []
         accuracy = []
         print("Starting Train")
@@ -173,7 +173,7 @@ class MnistAE():
         return self.AEC(data.type(torch.FloatTensor)) if useRows else self.pixel_AEC(
             data.type(torch.FloatTensor))  # maybe remove type
 
-    def plotNN(self, saveNet = False):
+    def plotNN(self, saveNet = False, savePlt=False):
 
         startLoss = time.perf_counter()
         loss = self.train(saveNet)
@@ -187,10 +187,14 @@ class MnistAE():
         reconed = self.reconstruct(torch.unsqueeze(figure, 0))
         plt.title("Reconstructed")
         plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
+        if savePlt:
+            plt.savefig(f"Plots/ReconstrucedNoClass.png")
         plt.show()
 
         plt.title("Loss")
         plt.plot(np.arange(self.epochs), loss)
+        if savePlt:
+            plt.savefig(f"Plots/LossNoClass.png")
         plt.show()
 
         pixels = self.trainSet.data.detach().squeeze().numpy()[0].reshape(28, 28)
@@ -208,7 +212,7 @@ class MnistAE():
         print(f"the reconstruct calc took {(endReconstruct - endLoss) / 60} minutes")
         print(f"overall it took {(endReconstruct - startLoss) / 60} minutes")
 
-    def plotClassification(self, useRows, saveNet=False):
+    def plotClassification(self, useRows, saveNet=False, savePlt=False):
         startLoss = time.perf_counter()
 
         trainLoss, accuracy = self.trainClassification(useRows, saveNet)
@@ -218,6 +222,8 @@ class MnistAE():
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.plot(np.arange(self.epochs), trainLoss)
+        if savePlt:
+            plt.savefig(f"Plots/ClassificationLoss.png")
         plt.show()
 
         plt.figure()
@@ -225,6 +231,8 @@ class MnistAE():
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.plot(np.arange(self.epochs), accuracy)
+        if savePlt:
+            plt.savefig(f"Plots/ClassificationAccuracy.png")
         plt.show()
 
         dataIter = iter(self.testData)
@@ -242,6 +250,8 @@ class MnistAE():
             reconed = reconed.view(28, 28)
         reconed = reconed / 0.3081 + 0.1307
         plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
+        if savePlt:
+            plt.savefig(f"Plots/ReconstructedImg.png")
         plt.show()
 
 
@@ -253,30 +263,35 @@ class MnistAE():
         newPredict = np.argmax(predict.squeeze().detach().numpy(), axis=1)
         return 1 - np.mean(newPredict != labels.detach().numpy())
 
-    def imshow(self, img, title, useRows):      #TODO: DELETE THIS!!
-        #  Amir's show image
+    def imshow(self, img, title, useRows, savePlt=False):
         img = img / 0.3081 + 0.1307
         numg = img.numpy()
         plt.imshow(np.transpose(numg, (1, 2, 0)))
         plt.title(title)
+        if savePlt:
+            plt.savefig(f"Plots/{title}.png")
         plt.show()
 
-    def showOneImg(self, img, title):
+    def showOneImg(self, img, title, savePlt=False):
 
         img = img / 0.3081 + 0.1307
         # reconed = img.view(28, 28)
         plt.imshow(img.squeeze().detach().numpy().reshape(28,28), cmap='gray')
         plt.title(title)
+        if savePlt:
+            plt.savefig(f"Plots/{title}.png")
         plt.show()
 
-    def plotLoss(self, loss, title):
+    def plotLoss(self, loss, title, savePlt=False):
         plt.figure()
         plt.plot(loss)
         plt.title(title)
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
+        if savePlt:
+            plt.savefig(f"Plots/{title}.png")
         plt.show()
 
 
 saveNet = False
-MnistAE().plotClassification(False)
+MnistAE().plotClassification(useRows=False, savePlt=False)
