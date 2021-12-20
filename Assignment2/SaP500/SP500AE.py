@@ -15,7 +15,7 @@ import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=200, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -146,21 +146,18 @@ class SP500AE():
                 currLoss.append(loss.item())
                 currLossRecon.append(lossRecon.item())
                 currLossPred.append(lossPred.item())
-                if ind % 100 == 0:
+                if ind % 500 == 0:
                     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
             lossReconArr.append(np.mean(np.asarray(currLossRecon)))
             lossPredArr.append(np.mean(np.asarray(currLossPred)))
-            self.plotPred(lossArr, lossReconArr, lossPredArr, savePlt)
+            self.plotPred(lossArr, lossReconArr, lossPredArr, savePlt)          #3.2
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
             print(f"Finished training. Saving net at {netDir}")
         else:
             print(f"Finished training. Not saving net")
-
-        finalData = validateData.unsqueeze(2)
-        return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
 
     def testPredict(self, dataLoader, savePlt=False):
         predKeeper = []
@@ -170,7 +167,7 @@ class SP500AE():
             currX = dataLoader[:, i: i+interval]
             output, predict = self.AEPred(currX)
             predKeeper.append(predict[:, -1])
-            currLoss = nn.MSELoss().forward(input=predict[-1], target=dataLoader[:, i+interval])
+            currLoss = nn.MSELoss().forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze())
             loss.append(currLoss.item())
         return predKeeper, np.mean(np.asarray(loss))
 
@@ -237,23 +234,34 @@ class SP500AE():
         self.plotLoss(predLoss, "Prediction Loss", savePlt)
 
     def runPrediction(self, savePlt=False):
+        startTime = time.perf_counter()
+
         data, test = splitData(parseData(), 1)
-        # self.trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test, False)
+        self.trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test, False)
         multiPredKeeper, multiLoss = self.testPredict(test.unsqueeze(2))
         reconed = self.reconstruct(test.unsqueeze(2)).squeeze()
+        halfMark = test.shape[1] - math.floor(test.shape[1]/2)
+
+        reconed = reconed[:, halfMark:]
 
         multiPredKeeper = torch.stack(multiPredKeeper, dim=1)
-        firstHalf = (test.shape[1] - math.floor(test.shape[1]/2))+1
-        multiPredFull = torch.cat((test[:, 1: firstHalf], multiPredKeeper), dim=1)
+
+        endTime = time.perf_counter()
+
+        print(f"overall time is {(endTime - startTime) / 60} minutes")
 
         plt.figure()
-        plt.title("Reconstructed vs Multi Predticted")
-        plt.plot(reconed.detach().numpy(), label="Reconstructed", color="blue")
-        plt.plot(multiPredFull.detach().numpy(), label="Multi Predicted", color="tomato")
+        plt.title("Reconstructed vs Multi Predicted")
+        plt.plot(reconed[0].detach().numpy(), label="Reconstructed", color="blue")
+        plt.plot(multiPredKeeper[0].detach().numpy(), label="Multi Predicted", color="tomato")
+        plt.xlabel("Time")
+        plt.ylabel("Closing Rate")
         plt.legend()
         if savePlt:
             plt.savefig(f"Plots/multiPredict.png")
         plt.show()
+
+
 
 
 
