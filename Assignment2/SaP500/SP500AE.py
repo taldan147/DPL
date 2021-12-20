@@ -14,8 +14,8 @@ import time
 import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=20, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=10, help="batch size")
+parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -135,7 +135,7 @@ class SP500AE():
         return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
 
     def trainPredict(self, trainLoader, validateData, saveNet=False, savePlt=False):
-        self.AEPred.to(self.device)
+        model = self.AEPred.to(self.device)
         print("Starting Train For Prediction")
         if saveNet:
             print("Will save net!")
@@ -149,14 +149,14 @@ class SP500AE():
             currLossPred = []
             for ind, tensor in enumerate(trainLoader):
                 print(f"this is iteration number {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
-                currX = tensor.unsqueeze(2)[:,: -1]
-                currY = tensor.unsqueeze(2)[:,1 :]
+                currX = tensor.unsqueeze(2)[:,: -1].to(self.device)
+                currY = tensor.unsqueeze(2)[:,1 :].to(self.device)
 
                 self.optimizerPred.zero_grad()
-                currX.to(self.device)
-                output, pred = self.AEPred(currX)
-                lossRecon = nn.MSELoss().forward(output, currX)
-                lossPred = nn.MSELoss().forward(pred.unsqueeze(2), currY)
+                output, pred = model(currX)
+                mse = nn.MSELoss().to(self.device)
+                lossRecon = mse.forward(output, currX)
+                lossPred = mse.forward(pred.unsqueeze(2), currY)
                 loss = lossPred + lossRecon
                 loss.backward()
                 self.optimizerPred.step()
@@ -179,12 +179,14 @@ class SP500AE():
     def testPredict(self, dataLoader, savePlt=False):
         predKeeper = []
         loss = []
+        model = self.AEPred.to(self.device)
         interval = dataLoader.shape[1] - math.floor(dataLoader.shape[1]/2)
         for i in range(math.floor(dataLoader.shape[1]/2)):
-            currX = dataLoader[:, i: i+interval]
-            output, predict = self.AEPred(currX)
+            currX = dataLoader[:, i: i+interval].to(self.device)
+            output, predict = model(currX)
             predKeeper.append(predict[:, -1])
-            currLoss = nn.MSELoss().forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze())
+            mse = nn.MSELoss().to(self.device)
+            currLoss = mse.forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze().to(self.device))
             loss.append(currLoss.item())
         return predKeeper, np.mean(np.asarray(loss))
 
