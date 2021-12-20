@@ -14,7 +14,7 @@ import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=500, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -132,11 +132,13 @@ class SP500AE():
         plt.title("Original")
         plt.plot(signal)
         plt.savefig(f"Plots/OriginalSignal.png")
+        plt.show()
 
         reconstructed = self.reconstruct(signal.unsqueeze(0).unsqueeze(2))
         plt.title("reconstructed")
         plt.plot(reconstructed.squeeze().detach().numpy())
         plt.savefig(f"Plots/ReconstructSignal.png")
+        plt.show()
 
     def plotCrossVal(self, testData):
         dataIter = iter(testData)
@@ -145,17 +147,20 @@ class SP500AE():
         plt.title("Original")
         plt.plot(figure)
         plt.savefig(f"Plots/OriginalCrossVal.png")
+        plt.show()
 
         reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2))
         plt.title("Reconstructed")
         plt.plot(reconstructed.squeeze().detach().numpy())
         plt.savefig(f"Plots/ReconstructCrossVal.png")
+        plt.show()
 
     def plotLoss(self, loss):
         plt.figure()
         plt.plot(loss)
         plt.title("stocks temp loss")
         plt.savefig(f"Plots/TempLossPlot.png")
+        plt.show()
 
 
 
@@ -171,6 +176,7 @@ def plotGoogleAmazon():
                           label='Google')
     plt.legend()
     plt.savefig(f"Plots/GOOGLAMZN.png")
+    plt.show()
 
 def crossValidate(data, k):
     trainTensor, testTensor = splitData(data, k)

@@ -13,14 +13,14 @@ import os
 import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
-parser.add_argument('--batch_size', type=int, default=64, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=128, help="batch size")
+parser.add_argument('--epochs', type=int, default=3, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=200, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=400, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=28, help="size of an input")
-parser.add_argument('--dropout', type=float, default=0.2,  help="dropout ratio")
+parser.add_argument('--dropout', type=float, default=0,  help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=28, help="size of a seq")
 parser.add_argument('--output_size', type=int, default=28, help="size of the output")
 parser.add_argument('--pixel_output_size', type=int, default=1, help="size of the output PbP")
@@ -142,12 +142,12 @@ class MnistAE():
                 self.plotLoss(accArr, "curr accuracy mnist")
                 self.plotLoss(lossArr, "curr loss mnist")
 
-                # if ind % 500 == 0:
-                #     self.showOneImg(output[0], "reconstructed")
-                #     self.showOneImg(currX[0], "orig")
-                    # with torch.no_grad():
-                    #     self.imshow(torchvision.utils.make_grid(currX.unsqueeze(1)), "original", useRows)
-                    #     self.imshow(torchvision.utils.make_grid(output.unsqueeze(1)), "recontructed", useRows)
+                if ind % 200 == 0:
+                    self.showOneImg(output[0], "reconstructed")
+                    self.showOneImg(currX[0], "orig")
+                #     with torch.no_grad():
+                #         self.imshow(torchvision.utils.make_grid(currX.unsqueeze(1)), "original", useRows)
+                #         self.imshow(torchvision.utils.make_grid(output.unsqueeze(1)), "recontructed", useRows)
             avgLoss = currLoss / len(self.trainData)
             avgACC = currAcc / len(self.trainData)
             accuracy.append(avgACC)
