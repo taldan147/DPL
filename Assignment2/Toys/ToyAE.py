@@ -71,7 +71,7 @@ class ToyAE():
         data.to(self.device)
         return self.AE.forward(data)
 
-    def plotNN(self):
+    def plotNN(self, savePlt=False):
 
         startLoss = time.perf_counter()
         trainLoss, validLoss = self.train()
@@ -80,6 +80,8 @@ class ToyAE():
         plt.plot(np.arange(self.epochs), trainLoss, label='train')
         plt.plot(np.arange(self.epochs), validLoss, label='validation')
         plt.legend()
+        if savePlt:
+            plt.savefig(f"Plots/TrainValidateLoss.png")
         plt.show()
 
         endLoss = time.perf_counter()
@@ -87,9 +89,11 @@ class ToyAE():
         reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
 
         plt.figure()
-        plt.title("reconstruction")
+        plt.title("Reconstruction")
         plt.plot(reconstruct[0], label="reconstructed")
         plt.plot(self.trainData[0], label="Data")
+        if savePlt:
+            plt.savefig(f"Plots/ToyReconstruction.png")
         plt.show()
 
         endReconstruct = time.perf_counter()
@@ -100,4 +104,4 @@ class ToyAE():
         print(f"the reconstruct calc took {(endReconstruct-endLoss)/60} minutes")
         print(f"overall it took {(endReconstruct-startLoss)/60} minutes")
 
-ToyAE().plotNN()
+ToyAE().plotNN(savePlt=False)
