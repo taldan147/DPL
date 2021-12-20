@@ -256,10 +256,10 @@ class SP500AE():
         data, test = splitData(parseData(), 1)
         self.trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test, False)
         multiPredKeeper, multiLoss = self.testPredict(test.unsqueeze(2))
-        reconed = self.reconstruct(test.unsqueeze(2)).squeeze()
+        _, oneStepPred = self.AEPred(test.unsqueeze(2))
         halfMark = test.shape[1] - math.floor(test.shape[1]/2)
 
-        reconed = reconed[:, halfMark:]
+        oneStepPred = oneStepPred[:, halfMark:]
 
         multiPredKeeper = torch.stack(multiPredKeeper, dim=1)
 
@@ -268,8 +268,8 @@ class SP500AE():
         print(f"overall time is {(endTime - startTime) / 60} minutes")
 
         plt.figure()
-        plt.title("Reconstructed vs Multi Predicted")
-        plt.plot(reconed[0].detach().numpy(), label="Reconstructed", color="blue")
+        plt.title("One Step Predicted vs Multi Predicted")
+        plt.plot(oneStepPred[0].detach().numpy(), label="Reconstructed", color="blue")
         plt.plot(multiPredKeeper[0].detach().numpy(), label="Multi Predicted", color="tomato")
         plt.xlabel("Time")
         plt.ylabel("Closing Rate")
