@@ -11,7 +11,7 @@ import time
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=220, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=20, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -42,34 +42,34 @@ class ToyAE():
     def train(self):
         trainLoss = []
         validateLoss = []
-        self.AE.to(self.device)
+        model = self.AE.to(self.device)
+        mse = nn.MSELoss().to(self.device)
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch}")
             currLoss = 0
             perm = np.random.permutation(len(self.trainData))
             for k in range(math.floor(len(self.trainData)/self.batchs)):
-                print(f"this is iteration number {k+1} for epoch number {epoch+1}")
+                print(f"this is iteration number {k+1}/{math.floor(len(self.trainData)/self.batchs)} for epoch number {epoch+1}/{self.epochs}")
                 indx = perm[k * self.batchs:(k + 1) * self.batchs]
-                currX = self.trainData[indx]
+                currX = self.trainData[indx].to(self.device)
                 self.optimizer.zero_grad()
-                currX.to(self.device)
-                output = self.AE.forward(currX)
-                loss = nn.MSELoss().forward(output, currX)
+                output = model(currX)
+                loss = mse.forward(output, currX)
                 loss.backward()
                 if self.grad_clip is not None:
-                    torch.nn.utils.clip_grad_norm(self.AE.parameters(), self.grad_clip)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_clip)
                 self.optimizer.step()
                 currLoss += loss.item()
             avgLoss = currLoss / (math.floor(len(self.trainData)/self.batchs))
-            currLoss = nn.MSELoss().forward(self.AE(self.validateData), self.validateData)
+            validateData = self.validateData.to(self.device)
+            currLoss = mse.forward(model(validateData), validateData)
             validateLoss.append(currLoss.item())
             trainLoss.append(avgLoss)
         return trainLoss, validateLoss
 
 
     def reconstruct(self, data):
-        data.to(self.device)
-        return self.AE.forward(data)
+        return self.AE.to(self.device).forward(data.to(self.device))
 
     def plotNN(self, savePlt=False):
 
@@ -86,12 +86,13 @@ class ToyAE():
 
         endLoss = time.perf_counter()
 
-        reconstruct = self.reconstruct(self.trainData).detach().squeeze().numpy()
+        reconstruct = self.reconstruct(self.trainData).detach().cpu().squeeze().numpy()
 
         plt.figure()
         plt.title("Reconstruction")
         plt.plot(reconstruct[0], label="reconstructed")
         plt.plot(self.trainData[0], label="Data")
+        plt.legend()
         if savePlt:
             plt.savefig(f"Plots/ToyReconstruction.png")
         plt.show()
@@ -114,7 +115,7 @@ def grid_search():
     hs_size_arr = [16, 32, 64]
     grad_clip_arr = [None, 1, 10]
 
-    params_loss_keepper = {}
+    params_loss_keeper = {}
     best_params = {'lr': None, 'hs_size': None, 'grad_clip': None}
     best_loss = np.Inf
     for lr in lr_arr:
@@ -125,10 +126,14 @@ def grid_search():
                 if curr_loss < best_loss:
                     best_loss = curr_loss
                     best_params = {'lr': lr, 'hs_size': hs_size, 'grad_clip': grad_clip}
-                params_loss_keepper.update({f'lr: {lr}, hs_size: {hs_size}, grad_clip: {grad_clip}:': curr_loss})
+                params_loss_keeper.update({f'lr: {lr}, hs_size: {hs_size}, grad_clip: {grad_clip}:': curr_loss})
     print(f'Best parameters found: {best_params}')
     print(f'Best Validation Loss: {best_loss}')
-    print(f'Parameters loss: {params_loss_keepper}')
+    print(f'Parameters loss: {params_loss_keeper}')
+    ToyAE(trainData, validateData, testData, best_params['lr'], best_params['grad_clip'], best_params['hs_size']).plotNN(savePlt=False)
 
-grid_search()
-# ToyAE().plotNN(savePlt=False)
+# grid_search()
+lr = 0.01
+hs_size = 16
+grad_clip = 10
+ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).plotNN(savePlt=False)
