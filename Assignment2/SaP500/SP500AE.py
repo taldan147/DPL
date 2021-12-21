@@ -132,7 +132,7 @@ class SP500AE():
             print(f"Finished training. Not saving net")
 
         finalData = validateData.unsqueeze(2).to(self.device)
-        mse.forward(model.forward(finalData), finalData).detach().cpu().numpy()
+        return mse.forward(model.forward(finalData), finalData).detach().cpu().numpy()
 
     def trainPredict(self, trainLoader, validateData, saveNet=False, savePlt=False):
         model = self.AEPred.to(self.device)
@@ -207,8 +207,7 @@ class SP500AE():
         return currTrain, currValidate
 
     def reconstruct(self, data):
-        data.to(self.device)
-        return self.AE.forward(data)
+        return self.AE.to(self.device).forward(data.to(self.device))
 
     def plotSignal(self, signal, title):
         signal = signal.squeeze()
@@ -236,7 +235,7 @@ class SP500AE():
 
         reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2))
         plt.title("Reconstructed")
-        plt.plot(reconstructed.squeeze().detach().numpy())
+        plt.plot(reconstructed.squeeze().detach().cpu().numpy())
         plt.xlabel("Date")
         plt.ylabel("Closing Rate")
         if savePlt:
