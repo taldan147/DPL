@@ -17,8 +17,8 @@ def exampleData(randData):
     plt.figure()
     for i in example:
         plt.plot(randData[i])
-    plt.title("Random Sample From Synthetic Data")
-    plt.xlabel("Time")
-    plt.ylabel("Value")
-    plt.show()
+        plt.title("Random Sample From Synthetic Data")
+        plt.xlabel("Time")
+        plt.ylabel("Value")
+        plt.show()
 

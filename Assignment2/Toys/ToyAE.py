@@ -11,7 +11,7 @@ import time
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=100, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=20, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -24,18 +24,18 @@ parser.add_argument('--grad_clip', type=int, default=1, help="gradient clipping 
 args =  parser.parse_args()
 
 class ToyAE():
-    def __init__(self):
+    def __init__(self, train, validation, test, lr, grad_clip, hs_size):
         super(ToyAE, self).__init__()
-        data = Gen.genData()
-        self.trainData = data[:6000]
-        self.validateData = data[6000:8000]
-        self.testData = data[8000:]
+        self.trainData = train
+        self.validateData = validation
+        self.testData = test
         self.epochs = args.epochs
         self.batchs = args.batch_size
-        self.grad_clip  =args.grad_clip
+        self.lr = lr
+        self.grad_clip = grad_clip
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.AE = AE.LSTMAE(args.input_size, args.num_of_layers, args.seq_size, args.hidden_size, args.dropout, args.output_size)
-        self.optimizer = torch.optim.Adam(self.AE.parameters(), args.lr) if (args.optimizer == "Adam")  else torch.optim.SGD(self.AE.parameters(), lr=args.lr)
+        self.AE = AE.LSTMAE(args.input_size, args.num_of_layers, args.seq_size, hs_size, args.dropout, args.output_size)
+        self.optimizer = torch.optim.Adam(self.AE.parameters(), lr) if (args.optimizer == "Adam")  else torch.optim.SGD(self.AE.parameters(), lr)
 
         print(f"using {self.device} as computing unit")
 
@@ -99,9 +99,36 @@ class ToyAE():
         endReconstruct = time.perf_counter()
 
         print("The parameters of the NN are:")
-        print(f"layers - {args.num_of_layers}\nepochs - {args.epochs}\nbatch size - {args.batch_size}\nlearning rate - {args.lr}\noptimizer - {args.optimizer}\n")
+        print(f"layers - {args.num_of_layers}\nepochs - {args.epochs}\nbatch size - {args.batch_size}\nlearning rate - {self.lr}\noptimizer - {args.optimizer}\n")
         print(f"the loss calc took {(endLoss-startLoss)/60} minutes")
         print(f"the reconstruct calc took {(endReconstruct-endLoss)/60} minutes")
         print(f"overall it took {(endReconstruct-startLoss)/60} minutes")
 
-ToyAE().plotNN(savePlt=False)
+data = Gen.genData()
+trainData = data[:6000]
+validateData = data[6000:8000]
+testData = data[8000:]
+
+def grid_search():
+    lr_arr = [0.01, 0.001, 0.0001]
+    hs_size_arr = [16, 32, 64]
+    grad_clip_arr = [None, 1, 10]
+
+    params_loss_keepper = {}
+    best_params = {'lr': None, 'hs_size': None, 'grad_clip': None}
+    best_loss = np.Inf
+    for lr in lr_arr:
+        for hs_size in hs_size_arr:
+            for grad_clip in grad_clip_arr:
+                train_loss, val_loss = ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).train()
+                curr_loss = val_loss[-1]
+                if curr_loss < best_loss:
+                    best_loss = curr_loss
+                    best_params = {'lr': lr, 'hs_size': hs_size, 'grad_clip': grad_clip}
+                params_loss_keepper.update({f'lr: {lr}, hs_size: {hs_size}, grad_clip: {grad_clip}:': curr_loss})
+    print(f'Best parameters found: {best_params}')
+    print(f'Best Validation Loss: {best_loss}')
+    print(f'Parameters loss: {params_loss_keepper}')
+
+grid_search()
+# ToyAE().plotNN(savePlt=False)
