@@ -14,8 +14,8 @@ import time
 import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=15, help="batch size")
-parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=32, help="batch size")
+parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -123,7 +123,7 @@ class SP500AE():
                 # if ind % 100 == 0:
                 #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
-            self.plotLoss(lossArr, "Stocks Temp Loss")
+            # self.plotLoss(lossArr, "Stocks Temp Loss")
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
@@ -164,8 +164,8 @@ class SP500AE():
                 currLoss.append(loss.item())
                 currLossRecon.append(lossRecon.item())
                 currLossPred.append(lossPred.item())
-                currX.detach()
-                currY.detach()
+                currX.detach().cpu()
+                currY.detach().cpu()
                 # if ind % 500 == 0:
                 #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
@@ -193,7 +193,7 @@ class SP500AE():
             predKeeper.append(predict[:, -1])
             currLoss = mse.forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze().to(self.device))
             loss.append(currLoss.item())
-            currLoss.detach()
+            currLoss.detach().cpu()
         return predKeeper, np.mean(np.asarray(loss))
 
 
@@ -233,13 +233,24 @@ class SP500AE():
             plt.savefig(f"Plots/OriginalCrossVal.png")
         plt.show()
 
-        reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2))
+        reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2)).squeeze().detach().cpu().numpy()
         plt.title("Reconstructed")
-        plt.plot(reconstructed.squeeze().detach().cpu().numpy())
+
+        plt.plot(reconstructed)
         plt.xlabel("Date")
         plt.ylabel("Closing Rate")
         if savePlt:
             plt.savefig(f"Plots/ReconstructCrossVal.png")
+        plt.show()
+
+        plt.title("Reconstructed")
+        plt.plot(reconstructed, color="tomato", label="Reconstructed")
+        plt.plot(figure, color="blue", label="Original")
+        plt.legend()
+        plt.xlabel("Date")
+        plt.ylabel("Closing Rate")
+        if savePlt:
+            plt.savefig(f"Plots/ReconstructVsOriginalCrossVal.png")
         plt.show()
 
     def plotLoss(self, loss, title, savePlt=False):
@@ -327,7 +338,7 @@ def crossValidate(data, k, savePlt=False):
     sp500.plotCrossVal(DataLoader(testTensor, 1, drop_last=True), savePlt)
 
 
-# crossValidate(parseData(),4)
+crossValidate(parseData(),4, savePlt=True)
 # plotGoogleAmazon()
-crossValidate(parseData(), 4)
+# SP500AE().runPrediction(False)
 #TODO: change date to time!

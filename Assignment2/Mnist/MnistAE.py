@@ -13,8 +13,8 @@ import os
 import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
-parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=3, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=64, help="batch size")
+parser.add_argument('--epochs', type=int, default=50, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=400, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -109,7 +109,9 @@ class MnistAE():
         if saveNet:
             print("Will save net!")
         NN = self.AEC if (useRows) else self.pixel_AEC
-        NN.to(self.device)
+        NN = NN.to(self.device)
+        mse = nn.MSELoss().to(self.device)
+        cross = nn.CrossEntropyLoss().to(self.device)
 
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch + 1}")
@@ -120,17 +122,15 @@ class MnistAE():
             for ind, (img, label) in enumerate(self.trainData):
                 print(
                     f"this is iteration number {ind + 1}/{len(self.trainData)} for epoch number {epoch + 1}/{args.epochs}")
-                currX = img.squeeze()
+                currX = img.squeeze().to(self.device)
                 print(f"\n{currX.shape}\n")
                 if not useRows:
                     currX = currX.view(currX.shape[0], args.pixel_seq_size, 1)
-
-
                 self.optimizer.zero_grad()
-                currX.to(self.device)
                 output, classed = NN(currX)
-                lossClass = nn.CrossEntropyLoss().forward(input=classed.squeeze(), target=label)
-                loss = nn.MSELoss().forward(output, currX)
+                label = label.to(self.device)
+                lossClass = cross.forward(input=classed.squeeze().to(self.device), target=label)
+                loss = mse.forward(output, currX)
                 totalLoss = (loss + lossClass) / 2
                 totalLoss.backward()
                 self.optimizer.step()
@@ -139,12 +139,12 @@ class MnistAE():
                 currAcc += acc
                 lossArr.append(totalLoss.item())
                 accArr.append(acc)
-                self.plotLoss(accArr, "curr accuracy mnist")
-                self.plotLoss(lossArr, "curr loss mnist")
+                # self.plotLoss(accArr, "curr accuracy mnist")
+                # self.plotLoss(lossArr, "curr loss mnist")
 
-                if ind % 200 == 0:
-                    self.showOneImg(output[0], "reconstructed")
-                    self.showOneImg(currX[0], "orig")
+                # if ind % 200 == 0:
+                #     self.showOneImg(output[0], "reconstructed")
+                #     self.showOneImg(currX[0], "orig")
                 #     with torch.no_grad():
                 #         self.imshow(torchvision.utils.make_grid(currX.unsqueeze(1)), "original", useRows)
                 #         self.imshow(torchvision.utils.make_grid(output.unsqueeze(1)), "recontructed", useRows)
@@ -157,7 +157,7 @@ class MnistAE():
             torch.save(self.AEC.state_dict(), classifyDir)
             print(f"Finished training. Saving net at {classifyDir}")
 
-        elif saveNet:
+        elif saveNet and not useRows:
             torch.save(self.pixel_AEC.state_dict(), pixelDir)
             print(f"Finished training. Saving net at {pixelDir}")
 
@@ -167,11 +167,11 @@ class MnistAE():
         return trainLoss, accuracy
 
     def reconstruct(self, data):
-        return self.AE(data.type(torch.FloatTensor))
+        return self.AE.to(self.device)(data.type(torch.FloatTensor))
 
     def reconstructClass(self, data, useRows):
-        return self.AEC(data.type(torch.FloatTensor)) if useRows else self.pixel_AEC(
-            data.type(torch.FloatTensor))  # maybe remove type
+        return self.AEC.to(self.device)(data.type(torch.FloatTensor).to(self.device)) if useRows else self.pixel_AEC.to(self.device)(
+            data.type(torch.FloatTensor).to(self.device))  # maybe remove type
 
     def plotNN(self, saveNet = False, savePlt=False):
 
@@ -243,13 +243,13 @@ class MnistAE():
         plt.show()
 
         reconed, label = self.reconstructClass(torch.unsqueeze(figure, 0), useRows) if useRows else self.reconstructClass(figure.view(1, args.pixel_seq_size, 1), useRows)
-        fixedLabel = np.argmax(label.squeeze().detach().numpy())
+        fixedLabel = np.argmax(label.squeeze().detach().cpu().numpy())
         print(fixedLabel)
         plt.title("Reconstructed")
         if not useRows:
             reconed = reconed.view(28, 28)
         reconed = reconed / 0.3081 + 0.1307
-        plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
+        plt.imshow(reconed.detach().squeeze().cpu().numpy(), cmap='gray')
         if savePlt:
             plt.savefig(f"Plots/ReconstructedImg.png")
         plt.show()
@@ -260,8 +260,8 @@ class MnistAE():
         print(f"overall it took {(endLoss - startLoss) / 60} minutes")
 
     def accuracy(self, predict, labels):
-        newPredict = np.argmax(predict.squeeze().detach().numpy(), axis=1)
-        return 1 - np.mean(newPredict != labels.detach().numpy())
+        newPredict = np.argmax(predict.squeeze().detach().cpu().numpy(), axis=1)
+        return 1 - np.mean(newPredict != labels.detach().cpu().numpy())
 
     def imshow(self, img, title, useRows, savePlt=False):
         img = img / 0.3081 + 0.1307
@@ -276,7 +276,7 @@ class MnistAE():
 
         img = img / 0.3081 + 0.1307
         # reconed = img.view(28, 28)
-        plt.imshow(img.squeeze().detach().numpy().reshape(28,28), cmap='gray')
+        plt.imshow(img.squeeze().detach().cpu().numpy().reshape(28,28), cmap='gray')
         plt.title(title)
         if savePlt:
             plt.savefig(f"Plots/{title}.png")
@@ -294,4 +294,4 @@ class MnistAE():
 
 
 saveNet = False
-MnistAE().plotClassification(useRows=False, savePlt=False)
+MnistAE().plotClassification(useRows=True, savePlt=False)
