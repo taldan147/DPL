@@ -14,10 +14,10 @@ import time
 import pandas as pd
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=10, help="batch size")
+parser.add_argument('--batch_size', type=int, default=15, help="batch size")
 parser.add_argument('--epochs', type=int, default=2, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
@@ -101,7 +101,8 @@ class SP500AE():
         print(f"using {self.device} as computing unit")
 
     def train(self, trainLoader, validateData, saveNet=False):
-        self.AE.to(self.device)
+        model = self.AE.to(self.device)
+        mse = nn.MSELoss().to(self.device)
         print("Starting Train")
         if saveNet:
             print("Will save net!")
@@ -112,16 +113,15 @@ class SP500AE():
             for ind, tensor in enumerate(trainLoader):
                 print(
                     f"this is iteration number {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
-                currX = tensor.unsqueeze(2)
+                currX = tensor.unsqueeze(2).to(self.device)
                 self.optimizer.zero_grad()
-                currX.to(self.device)
-                output = self.AE.forward(currX)
-                loss = nn.MSELoss().forward(output, currX)
+                output = model.forward(currX)
+                loss = mse.forward(output, currX)
                 loss.backward()
                 self.optimizer.step()
                 currLoss.append(loss.item())
-                if ind % 100 == 0:
-                    self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
+                # if ind % 100 == 0:
+                #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
             self.plotLoss(lossArr, "Stocks Temp Loss")
 
@@ -131,11 +131,13 @@ class SP500AE():
         else:
             print(f"Finished training. Not saving net")
 
-        finalData = validateData.unsqueeze(2)
-        return nn.MSELoss().forward(self.AE(finalData), finalData).detach().numpy()
+        finalData = validateData.unsqueeze(2).to(self.device)
+        mse.forward(model.forward(finalData), finalData).detach().cpu().numpy()
 
     def trainPredict(self, trainLoader, validateData, saveNet=False, savePlt=False):
         model = self.AEPred.to(self.device)
+        mse = nn.MSELoss().to(self.device)
+
         print("Starting Train For Prediction")
         if saveNet:
             print("Will save net!")
@@ -154,7 +156,6 @@ class SP500AE():
 
                 self.optimizerPred.zero_grad()
                 output, pred = model(currX)
-                mse = nn.MSELoss().to(self.device)
                 lossRecon = mse.forward(output, currX)
                 lossPred = mse.forward(pred.unsqueeze(2), currY)
                 loss = lossPred + lossRecon
@@ -163,6 +164,8 @@ class SP500AE():
                 currLoss.append(loss.item())
                 currLossRecon.append(lossRecon.item())
                 currLossPred.append(lossPred.item())
+                currX.detach()
+                currY.detach()
                 # if ind % 500 == 0:
                 #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
@@ -176,18 +179,21 @@ class SP500AE():
         else:
             print(f"Finished training. Not saving net")
 
+
     def testPredict(self, dataLoader, savePlt=False):
         predKeeper = []
         loss = []
         model = self.AEPred.to(self.device)
+        mse = nn.MSELoss().to(self.device)
         interval = dataLoader.shape[1] - math.floor(dataLoader.shape[1]/2)
         for i in range(math.floor(dataLoader.shape[1]/2)):
             currX = dataLoader[:, i: i+interval].to(self.device)
             output, predict = model(currX)
+            currX.detach()
             predKeeper.append(predict[:, -1])
-            mse = nn.MSELoss().to(self.device)
             currLoss = mse.forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze().to(self.device))
             loss.append(currLoss.item())
+            currLoss.detach()
         return predKeeper, np.mean(np.asarray(loss))
 
 
@@ -324,6 +330,5 @@ def crossValidate(data, k, savePlt=False):
 
 # crossValidate(parseData(),4)
 # plotGoogleAmazon()
-SP500AE().runPrediction()
-
+crossValidate(parseData(), 4)
 #TODO: change date to time!
