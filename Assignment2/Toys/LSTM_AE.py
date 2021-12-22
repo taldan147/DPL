@@ -12,7 +12,7 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         output, (h_t, c_t) = self.lstmEncoder(x)
-        return h_t[self.num_of_layers-1].view(-1, 1, self.hs_size)
+        return torch.tanh(h_t[self.num_of_layers-1]).view(-1, 1, self.hs_size)
 
 class Decoder(nn.Module):
     def __init__(self, input_size, num_of_layers, seq_size, hs_size, dropout, output_size):
@@ -43,5 +43,5 @@ class LSTMAE(nn.Module):
 
     def forward(self, x):
         encoded = self.encoder(x)
-        return self.decoder(encoded)
+        return torch.tanh(self.decoder(encoded))
 

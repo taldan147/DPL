@@ -11,16 +11,16 @@ import time
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=220, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=20, help="lstm hidden size")
-parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
+parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
+parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
-parser.add_argument('--dropout', type=float, default=0.2, help="dropout ratio")
+parser.add_argument('--dropout', type=float, default=0, help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=50, help="size of a seq")
 parser.add_argument('--output_size', type=int, default=1, help="size of the output")
-parser.add_argument('--grad_clip', type=int, default=1, help="gradient clipping value")
+parser.add_argument('--grad_clip', type=int, default=None, help="gradient clipping value")
 args =  parser.parse_args()
 
 class ToyAE():
@@ -88,19 +88,22 @@ class ToyAE():
 
         reconstruct = self.reconstruct(self.trainData).detach().cpu().squeeze().numpy()
 
-        plt.figure()
-        plt.title("Reconstruction")
-        plt.plot(reconstruct[0], label="reconstructed")
-        plt.plot(self.trainData[0], label="Data")
-        plt.legend()
-        if savePlt:
-            plt.savefig(f"Plots/ToyReconstruction.png")
-        plt.show()
+        for i in range(5):
+            plt.figure()
+            plt.title("Original signal vs Reconstructed signal")
+            plt.plot(reconstruct[i], label="reconstructed")
+            plt.plot(self.trainData[i], label="original")
+            plt.xlabel("Time")
+            plt.ylabel("Value")
+            plt.legend()
+            if savePlt:
+                plt.savefig(f"Plots/ToyReconstruction.png")
+            plt.show()
 
         endReconstruct = time.perf_counter()
 
         print("The parameters of the NN are:")
-        print(f"layers - {args.num_of_layers}\nepochs - {args.epochs}\nbatch size - {args.batch_size}\nlearning rate - {self.lr}\noptimizer - {args.optimizer}\n")
+        print(f"layers - {args.num_of_layers}\nepochs - {self.epochs}\nbatch size - {args.batch_size}\nlearning rate - {self.lr}\noptimizer - {self.optimizer}\n")
         print(f"the loss calc took {(endLoss-startLoss)/60} minutes")
         print(f"the reconstruct calc took {(endReconstruct-endLoss)/60} minutes")
         print(f"overall it took {(endReconstruct-startLoss)/60} minutes")
@@ -132,8 +135,8 @@ def grid_search():
     print(f'Parameters loss: {params_loss_keeper}')
     ToyAE(trainData, validateData, testData, best_params['lr'], best_params['grad_clip'], best_params['hs_size']).plotNN(savePlt=False)
 
-# grid_search()
+grid_search()
 lr = 0.01
-hs_size = 16
-grad_clip = 10
-ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).plotNN(savePlt=False)
+hs_size = 40
+grad_clip = 1
+# ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).plotNN(savePlt=False)
