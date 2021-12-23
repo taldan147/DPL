@@ -12,12 +12,14 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import time
 import pandas as pd
+from matplotlib.ticker import MaxNLocator
+from matplotlib.dates import DateFormatter
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
-parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument('--epochs', type=int, default=5, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=8, help="batch size")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=50, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=40, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
@@ -29,7 +31,10 @@ args = parser.parse_args()
 dataPath = f"{os.getcwd()}/SP 500 Stock Prices 2014-2017.csv"
 currDir = f"{os.getcwd()}/Sap500"
 netDir = f"{currDir}/SavedNets/Net.pt"
-
+meansTrain = []
+stdsTrain = []
+meansTest = []
+stdsTest = []
 
 def parseData():
     stocks = pd.read_csv(dataPath)
@@ -53,27 +58,57 @@ def splitData(stocks, numGroups):
     return trainTensor, testTensor
 
 
-def splitDataByName(stocks, numGroups):
-    stocks = stocks[["symbol", "close"]]
+def splitDataByName(stocks):
+    stocks = stocks[["symbol", "close", "date"]]
     stocksGroups = stocks.groupby('symbol')
     data = stocksGroups['close'].apply(lambda x: pd.Series(x.values)).unstack()
     data.interpolate(inplace=True)
+    dates = stocksGroups['date'].apply(lambda x: pd.Series(x.values)).unstack()
     trainInd, testInd = createRandomIndices(len(data.values), 0.8)
-    trainList = data.values[trainInd]
-    testList = data.values[testInd]
-    trainData = np.row_stack(np.asarray(np.array_split(trainList, 19, axis=1)))
-    trainTensor = toNormal(torch.FloatTensor(trainData))
-    testTensor = toNormal(torch.FloatTensor(testList))
-    trainTensor = np.array_split(trainTensor, numGroups)
+    dataValues = np.asarray(data.values)
+    trainList = dataValues[trainInd]
+    testList = dataValues[testInd]
+    trainData = np.asarray(np.array_split(trainList, 19, axis=1)).transpose((1,0,2))
+    # trainData = np.asarray(toNormal(trainList))
+    testData = np.asarray(np.array_split(testList, 19, axis=1)).transpose((1,0,2))
+    # testData = np.asarray(toNormal(testList))
+    trainTensor = torch.FloatTensor(toNormal(trainData, False))
+    testTensor = torch.FloatTensor(toNormal(testData, True))
 
-    return trainTensor, testTensor
+    # trainTensor = np.array_split(trainTensor, numGroups)
+
+    return trainTensor, testTensor, np.asarray(dates[:1]).flatten()
 
 
-def toNormal(data):
-    minData = data.min(1, keepdim=True)[0]
-    maxData = data.max(1, keepdim=True)[0]
-    data -= minData
-    data /= maxData
+def toNormal(data, isTestData):
+    global meansTrain
+    global stdsTrain
+    global meansTest
+    global stdsTest
+
+    # data -= np.min(data,2, keepdims=True)
+    # data /= np.max(data,2, keepdims=True)
+    for i in range(len(data)):
+        currMean = []
+        currStd = []
+        for j in range(len(data[i])):
+            mean = np.mean(data[i][j])
+            std = np.std(data[i][j])
+            data[i][j] = (data[i][j] - mean) / std
+            currMean.append(mean)
+            currStd.append(std)
+        if isTestData:
+            meansTest.append(currMean)
+            stdsTest.append(currStd)
+        else:
+            meansTrain.append(currMean)
+            stdsTrain.append(currStd)
+    return data
+
+def fromNormal(data):
+    for i in range(len(data)):
+        for j in range(len(data[i])):
+            data[i][j] = data[i][j] * stdsTest[i][j] + meansTest[i][j]
     return data
 
 
@@ -113,9 +148,11 @@ class SP500AE():
             for ind, tensor in enumerate(trainLoader):
                 print(
                     f"this is iteration number {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
-                currX = tensor.unsqueeze(2).to(self.device)
+                # currX = tensor.unsqueeze(2).to(self.device)
+                currX = torch.flatten(tensor, 0,1).unsqueeze(2).to(self.device)
                 self.optimizer.zero_grad()
                 output = model.forward(currX)
+                print(output.shape)
                 loss = mse.forward(output, currX)
                 loss.backward()
                 self.optimizer.step()
@@ -123,7 +160,7 @@ class SP500AE():
                 # if ind % 100 == 0:
                 #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
-            # self.plotLoss(lossArr, "Stocks Temp Loss")
+            self.plotLoss(lossArr, "Stocks Temp Loss")
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
@@ -131,8 +168,9 @@ class SP500AE():
         else:
             print(f"Finished training. Not saving net")
 
-        finalData = validateData.unsqueeze(2).to(self.device)
-        return mse.forward(model.forward(finalData), finalData).detach().cpu().numpy()
+        # finalData = torch.flatten(validateData, 0,1).unsqueeze(2).to(self.device)
+        # finalData = validateData.unsqueeze(2).to(self.device)
+        # return mse.forward(model.forward(finalData), finalData).detach().cpu().numpy()
 
     def trainPredict(self, trainLoader, validateData, saveNet=False, savePlt=False):
         model = self.AEPred.to(self.device)
@@ -151,8 +189,9 @@ class SP500AE():
             currLossPred = []
             for ind, tensor in enumerate(trainLoader):
                 print(f"this is iteration number {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
-                currX = tensor.unsqueeze(2)[:,: -1].to(self.device)
-                currY = tensor.unsqueeze(2)[:,1 :].to(self.device)
+                tensor = torch.flatten(tensor, 0,1).unsqueeze(2).to(self.device)
+                currX = tensor[:,: -1].to(self.device)
+                currY = tensor[:,1 :].to(self.device)
 
                 self.optimizerPred.zero_grad()
                 output, pred = model(currX)
@@ -180,21 +219,21 @@ class SP500AE():
             print(f"Finished training. Not saving net")
 
 
-    def testPredict(self, dataLoader, savePlt=False):
-        predKeeper = []
-        loss = []
-        model = self.AEPred.to(self.device)
-        mse = nn.MSELoss().to(self.device)
-        interval = dataLoader.shape[1] - math.floor(dataLoader.shape[1]/2)
-        for i in range(math.floor(dataLoader.shape[1]/2)):
-            currX = dataLoader[:, i: i+interval].to(self.device)
-            output, predict = model(currX)
-            currX.detach()
-            predKeeper.append(predict[:, -1])
-            currLoss = mse.forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze().to(self.device))
-            loss.append(currLoss.item())
-            currLoss.detach().cpu()
-        return predKeeper, np.mean(np.asarray(loss))
+    # def testPredict(self, dataLoader, savePlt=False):
+    #     predKeeper = []
+    #     loss = []
+    #     model = self.AEPred.to(self.device)
+    #     mse = nn.MSELoss().to(self.device)
+    #     interval = dataLoader.shape[1] - math.floor(dataLoader.shape[1]/2)
+    #     for i in range(math.floor(dataLoader.shape[1]/2)):
+    #         currX = dataLoader[:, i: i+interval].to(self.device)
+    #         output, predict = model(currX)
+    #         currX.detach()
+    #         predKeeper.append(predict[:, -1])
+    #         currLoss = mse.forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze().to(self.device))
+    #         loss.append(currLoss.item())
+    #         currLoss.detach().cpu()
+    #     return predKeeper, np.mean(np.asarray(loss))
 
 
 
@@ -221,36 +260,30 @@ class SP500AE():
         plt.savefig(f"Plots/ReconstructSignal.png")
         plt.show()
 
-    def plotCrossVal(self, testData, savePlt=False):
-        dataIter = iter(testData)
-        figure = dataIter.next()
-        figure = figure.squeeze()
+    def plotCrossVal(self, testData, dates,savePlt=False):
+        fig, axes = plt.subplots()
+        axes.xaxis.set_major_locator(MaxNLocator(6))
+        plt.xticks(rotation=20, ha='right')
+        testData = fromNormal(testData)
+        reconTest = self.AE(torch.flatten(torch.FloatTensor(testData), 0,1).unsqueeze(2).to(self.device)).view(testData.shape)
+        reconTest = fromNormal(reconTest.detach().numpy())
+
+        stock = testData[0]
+        stock = stock.squeeze()
         plt.title("Original")
-        plt.plot(figure)
+        plt.plot(dates, stock.flatten(), label='original')
         plt.xlabel("Date")
         plt.ylabel("Closing Rate")
         if savePlt:
             plt.savefig(f"Plots/OriginalCrossVal.png")
-        plt.show()
 
-        reconstructed = self.reconstruct(figure.unsqueeze(0).unsqueeze(2)).squeeze().detach().cpu().numpy()
-        plt.title("Reconstructed")
+        plt.title("Original vs Reconstructed")
 
-        plt.plot(reconstructed)
+        plt.plot(dates, reconTest[0].flatten(), label='reconstructed')
         plt.xlabel("Date")
         plt.ylabel("Closing Rate")
         if savePlt:
             plt.savefig(f"Plots/ReconstructCrossVal.png")
-        plt.show()
-
-        plt.title("Reconstructed")
-        plt.plot(reconstructed, color="tomato", label="Reconstructed")
-        plt.plot(figure, color="blue", label="Original")
-        plt.legend()
-        plt.xlabel("Date")
-        plt.ylabel("Closing Rate")
-        if savePlt:
-            plt.savefig(f"Plots/ReconstructVsOriginalCrossVal.png")
         plt.show()
 
     def plotLoss(self, loss, title, savePlt=False):
@@ -271,15 +304,15 @@ class SP500AE():
     def runPrediction(self, savePlt=False):
         startTime = time.perf_counter()
 
-        data, test = splitData(parseData(), 1)
-        self.trainPredict(DataLoader(data[0], args.batch_size, drop_last=True), test, False)
-        multiPredKeeper, multiLoss = self.testPredict(test.unsqueeze(2))
-        _, oneStepPred = self.AEPred(test.unsqueeze(2))
+        data, test, dates = splitDataByName(parseData())
+        self.trainPredict(DataLoader(data, args.batch_size, drop_last=True), test, False)
+        # multiPredKeeper, multiLoss = self.testPredict(test)
+        _, oneStepPred = self.AEPred(torch.flatten(test, 0,1).unsqueeze(2).to(self.device))
         halfMark = test.shape[1] - math.floor(test.shape[1]/2)
 
         oneStepPred = oneStepPred[:, halfMark:]
 
-        multiPredKeeper = torch.stack(multiPredKeeper, dim=1)
+        # multiPredKeeper = torch.stack(multiPredKeeper, dim=1)
 
         endTime = time.perf_counter()
 
@@ -288,7 +321,7 @@ class SP500AE():
         plt.figure()
         plt.title("One Step Predicted vs Multi Predicted")
         plt.plot(oneStepPred[0].detach().numpy(), label="Reconstructed", color="blue")
-        plt.plot(multiPredKeeper[0].detach().numpy(), label="Multi Predicted", color="tomato")
+        # plt.plot(multiPredKeeper[0].detach().numpy(), label="Multi Predicted", color="tomato")
         plt.xlabel("Time")
         plt.ylabel("Closing Rate")
         plt.legend()
@@ -300,45 +333,57 @@ class SP500AE():
 
 def plotGoogleAmazon(savePlt=False):
     stocks = parseData()
+    stocks = stocks[["symbol", "high", "date"]]
+    stocksGroups = stocks.groupby('symbol')
+    data = stocksGroups['high'].apply(lambda x: pd.Series(x.values)).unstack()
+    data.interpolate(inplace=True)
+    dates = stocksGroups['date'].apply(lambda x: pd.Series(x.values)).unstack()
+    dates = np.asarray(dates[:1]).flatten()
+    fig, axes = plt.subplots()
+    stocks = parseData()
+    axes.xaxis.set_major_locator(MaxNLocator(6))
+    plt.xticks(rotation=20, ha='right')
     google_amazon = stocks[stocks['symbol'].isin(["AMZN", "GOOGL"])]
     google_amazon = google_amazon.sort_values(by="date")
     amazon_daily_max = google_amazon[google_amazon.symbol == "AMZN"]['high']
     google_daily_max = google_amazon[google_amazon.symbol == "GOOGL"]['high']
-    amazon_daily_max.plot(x='date', y='high', title='amazon daily max', xlabel='Time', ylabel='Daily high',
-                          label='Amazon')
-    google_daily_max.plot(x='date', y='high', title='google daily max', xlabel='Time', ylabel='Daily high',
-                          label='Google')
+
+    plt.plot(dates, amazon_daily_max, label='Amazon')
+    plt.plot(dates, google_daily_max, label='Google')
     plt.legend()
     if savePlt:
         plt.savefig(f"Plots/GOOGLAMZN.png")
     plt.show()
 
-def crossValidate(data, k, savePlt=False):
-    trainTensor, testTensor = splitData(data, k)
+def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
+    trainTensor, testTensor, dates = splitDataByName(data)
+    trainTensor = np.array_split(trainTensor, k)
     lossArr = []
     startTime = time.perf_counter()
     endIter = 0
-    for ind in range(k):
-        print(f"Starting the {ind+1} validation set")
-        sp500 = SP500AE()
-        startIter = time.perf_counter()
-        currTrain, currValidate = sp500.prepareDataCrossValidate(trainTensor, ind)
-        trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
-        lossArr.append(sp500.train(trainLoader, currValidate))
-        endIter = time.perf_counter()
-        print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
-    bestArg = np.argmin(np.asarray(lossArr))
-    bestTrain, _ = sp500.prepareDataCrossValidate(trainTensor, bestArg)
+    # for ind in range(k):
+    #     print(f"Starting the {ind+1} validation set")
+    #     sp500 = SP500AE()
+    #     startIter = time.perf_counter()
+    #     currTrain, currValidate = sp500.prepareDataCrossValidate(trainTensor, ind)
+    #     trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
+    #     lossArr.append(sp500.train(trainLoader, currValidate))
+    #     endIter = time.perf_counter()
+    #     print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
+    # bestArg = np.argmin(np.asarray(lossArr))
+    # bestTrain, _ = sp500.prepareDataCrossValidate(trainTensor, bestArg)
     print(f"Starting full train")
-    bestLoss = SP500AE().train(DataLoader(bestTrain, args.batch_size, drop_last=True), testTensor)
+    bestModer = SP500AE()
+    bestLoss = bestModer.train(DataLoader(trainTensor, args.batch_size, drop_last=True), testTensor)
     endTime = time.perf_counter()
     print(f"the best loss we got was {bestLoss}")
     print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
     print(f"overall time is {(endTime - startTime)/60} minutes")
-    sp500.plotCrossVal(DataLoader(testTensor, 1, drop_last=True), savePlt)
+    bestModer.plotCrossVal(testTensor,dates,  savePlt)
+    # SP500AE().plotCrossVal(DataLoader(testTensor, 1, drop_last=True),dates,  savePlt)
 
 
-crossValidate(parseData(),4, savePlt=True)
-# plotGoogleAmazon()
+# crossValidate(parseData(),2, savePlt=True)
+plotGoogleAmazon()
 # SP500AE().runPrediction(False)
 #TODO: change date to time!

@@ -14,10 +14,10 @@ import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
 parser.add_argument('--batch_size', type=int, default=64, help="batch size")
-parser.add_argument('--epochs', type=int, default=50, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=20, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=400, help="lstm hidden size")
-parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
+parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=28, help="size of an input")
 parser.add_argument('--dropout', type=float, default=0,  help="dropout ratio")
@@ -65,8 +65,13 @@ class MnistAE():
                               args.output_size)
         self.pixel_AEC = AEC.LSTMAE(args.pixel_input_size, args.num_of_layers, args.pixel_seq_size, args.hidden_size,
                                     args.dropout, args.pixel_output_size)
-        self.optimizer = torch.optim.Adam(self.pixel_AEC.parameters(), args.lr) if (
-                args.optimizer == "Adam") else torch.optim.SGD(self.AEC.parameters(), lr=args.lr)  #TODO define different oprimizer for each LSTM
+        self.optimizer = torch.optim.Adam(self.AE.parameters(), args.lr) if (
+                args.optimizer == "Adam") else torch.optim.SGD(self.AE.parameters(), lr=args.lr)
+        self.classOptimizer = torch.optim.Adam(self.AEC.parameters(), args.lr) if (
+                args.optimizer == "Adam") else torch.optim.SGD(self.AEC.parameters(), lr=args.lr)
+        self.pixelsOptimizer = torch.optim.Adam(self.pixel_AEC.parameters(), args.lr) if (
+                args.optimizer == "Adam") else torch.optim.SGD(self.pixel_AEC.parameters(), lr=args.lr)
+        #TODO define different oprimizer for each LSTM
 
         print(f"using {self.device} as computing unit")
 
@@ -112,6 +117,7 @@ class MnistAE():
         NN = NN.to(self.device)
         mse = nn.MSELoss().to(self.device)
         cross = nn.CrossEntropyLoss().to(self.device)
+        optimizer = self.classOptimizer if useRows else self.pixelsOptimizer
 
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch + 1}")
@@ -125,14 +131,14 @@ class MnistAE():
                 currX = img.squeeze().to(self.device)
                 if not useRows:
                     currX = currX.view(currX.shape[0], args.pixel_seq_size, 1)
-                self.optimizer.zero_grad()
+                optimizer.zero_grad()
                 output, classed = NN(currX)
                 label = label.to(self.device)
                 lossClass = cross.forward(input=classed.squeeze().to(self.device), target=label)
                 loss = mse.forward(output, currX)
                 totalLoss = (loss + lossClass) / 2
                 totalLoss.backward()
-                self.optimizer.step()
+                optimizer.step()
                 currLoss += totalLoss.item()
                 acc = self.accuracy(classed, label)
                 currAcc += acc
@@ -177,28 +183,23 @@ class MnistAE():
         startLoss = time.perf_counter()
         loss = self.train(saveNet)
         dataIter = iter(self.testData)
-        figure, labels = dataIter.next()
-        figure = figure.squeeze()
-        plt.title("Original")
-        plt.imshow(figure, cmap='gray')
+
+        f, axarr = plt.subplots(2, 3)
+
+        for i in range(3):
+            figure, labels = dataIter.next()
+            figure = figure.squeeze()
+            axarr[0, i].imshow(figure, cmap='gray')
+            reconed = self.reconstruct(torch.unsqueeze(figure, 0))
+            axarr[1, i].imshow(reconed.detach().squeeze().numpy(), cmap='gray')
+        plt.suptitle("Origin vs Reconstructed images")
         plt.show()
 
-        reconed = self.reconstruct(torch.unsqueeze(figure, 0))
-        plt.title("Reconstructed")
-        plt.imshow(reconed.detach().squeeze().numpy(), cmap='gray')
-        if savePlt:
-            plt.savefig(f"Plots/ReconstrucedNoClass.png")
-        plt.show()
 
         plt.title("Loss")
         plt.plot(np.arange(self.epochs), loss)
         if savePlt:
             plt.savefig(f"Plots/LossNoClass.png")
-        plt.show()
-
-        pixels = self.trainSet.data.detach().squeeze().numpy()[0].reshape(28, 28)
-        plt.title("Original")
-        plt.imshow(pixels, cmap='gray')
         plt.show()
 
         endLoss = time.perf_counter()
@@ -260,7 +261,7 @@ class MnistAE():
 
     def accuracy(self, predict, labels):
         newPredict = np.argmax(predict.squeeze().detach().cpu().numpy(), axis=1)
-        return 1 - np.mean(newPredict != labels.detach().cpu().numpy())
+        return (1 - np.mean(newPredict != labels.detach().cpu().numpy()))*100
 
     def imshow(self, img, title, useRows, savePlt=False):
         img = img / 0.3081 + 0.1307
@@ -294,3 +295,4 @@ class MnistAE():
 
 saveNet = False
 MnistAE().plotClassification(useRows=True, savePlt=False)
+# MnistAE().plotNN()
