@@ -115,7 +115,7 @@ testData = data[8000:]
 
 def grid_search():
     lr_arr = [0.01, 0.001, 0.0001]
-    hs_size_arr = [16, 32, 64]
+    hs_size_arr = [8, 16, 32]
     grad_clip_arr = [None, 1, 10]
 
     params_loss_keeper = {}
