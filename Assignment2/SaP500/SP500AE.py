@@ -17,7 +17,7 @@ from matplotlib.dates import DateFormatter
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=8, help="batch size")
-parser.add_argument('--epochs', type=int, default=30, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=40, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -160,7 +160,7 @@ class SP500AE():
                 # if ind % 100 == 0:
                 #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
-            self.plotLoss(lossArr, "Stocks Temp Loss")
+            # self.plotLoss(lossArr, "Stocks Temp Loss")
 
         if saveNet:
             torch.save(self.AE.state_dict(), netDir)
@@ -168,9 +168,8 @@ class SP500AE():
         else:
             print(f"Finished training. Not saving net")
 
-        # finalData = torch.flatten(validateData, 0,1).unsqueeze(2).to(self.device)
-        # finalData = validateData.unsqueeze(2).to(self.device)
-        # return mse.forward(model.forward(finalData), finalData).detach().cpu().numpy()
+        finalData = torch.flatten(validateData, 0,1).unsqueeze(2).to(self.device)
+        return mse.forward(model.forward(finalData), finalData).detach().cpu().numpy()
 
     def trainPredict(self, trainLoader, validateData, saveNet=False, savePlt=False):
         model = self.AEPred.to(self.device)
@@ -247,30 +246,28 @@ class SP500AE():
         plt.show()
 
     def plotCrossVal(self, testData, dates,savePlt=False):
-        fig, axes = plt.subplots()
-        axes.xaxis.set_major_locator(MaxNLocator(6))
-        plt.xticks(rotation=20, ha='right')
+
         testData = fromNormal(testData)
         reconTest = self.AE(torch.flatten(torch.FloatTensor(testData), 0,1).unsqueeze(2).to(self.device)).view(testData.shape)
         reconTest = fromNormal(reconTest.detach().numpy())
 
-        stock = testData[0]
-        stock = stock.squeeze()
-        plt.title("Original")
-        plt.plot(dates, stock.flatten(), label='original')
-        plt.xlabel("Date")
-        plt.ylabel("Closing Rate")
-        if savePlt:
-            plt.savefig(f"Plots/OriginalCrossVal.png")
+        for i in range(3):
+            stock = testData[i]
+            stock = stock.squeeze()
+            fig, axes = plt.subplots()
+            axes.xaxis.set_major_locator(MaxNLocator(6))
+            plt.xticks(rotation=20, ha='right')
 
-        plt.title("Original vs Reconstructed")
+            plt.plot(dates, stock.flatten(), label='original')
 
-        plt.plot(dates, reconTest[0].flatten(), label='reconstructed')
-        plt.xlabel("Date")
-        plt.ylabel("Closing Rate")
-        if savePlt:
-            plt.savefig(f"Plots/ReconstructCrossVal.png")
-        plt.show()
+            plt.title("Original vs Reconstructed")
+
+            plt.plot(dates, reconTest[i].flatten(), label='reconstructed')
+            plt.xlabel("Date")
+            plt.ylabel("Closing Rate")
+            if savePlt:
+                plt.savefig(f"Plots/ReconstructCrossVal.png")
+            plt.show()
 
     def plotLoss(self, loss, title, savePlt=False):
         plt.figure()
@@ -438,10 +435,10 @@ def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
         endIter = time.perf_counter()
         print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
     bestArg = np.argmin(np.asarray(lossArr))
-    bestTrain, _ = sp500.prepareDataCrossValidate(trainTensor, bestArg)
+    bestTrain, bestValid = sp500.prepareDataCrossValidate(trainTensor, bestArg)
     print(f"Starting full train")
     bestModer = SP500AE()
-    bestLoss = bestModer.train(DataLoader(trainTensor, args.batch_size, drop_last=True), testTensor)
+    bestLoss = bestModer.train(DataLoader(bestTrain, args.batch_size, drop_last=True), bestValid)
     endTime = time.perf_counter()
     print(f"the best loss we got was {bestLoss}")
     print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
@@ -450,8 +447,8 @@ def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
     # SP500AE().plotCrossVal(DataLoader(testTensor, 1, drop_last=True),dates,  savePlt)
 
 
-# crossValidate(parseData(),2, savePlt=True)
+crossValidate(parseData(),2, savePlt=True)
 # plotGoogleAmazon()
-SP500AE().runPrediction(False)
+# SP500AE().runPrediction(False)
 # SP500AE().runPredictionMultiStep(False)
 #TODO: change date to time!
