@@ -428,17 +428,17 @@ def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
     lossArr = []
     startTime = time.perf_counter()
     endIter = 0
-    # for ind in range(k):
-    #     print(f"Starting the {ind+1} validation set")
-    #     sp500 = SP500AE()
-    #     startIter = time.perf_counter()
-    #     currTrain, currValidate = sp500.prepareDataCrossValidate(trainTensor, ind)
-    #     trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
-    #     lossArr.append(sp500.train(trainLoader, currValidate))
-    #     endIter = time.perf_counter()
-    #     print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
-    # bestArg = np.argmin(np.asarray(lossArr))
-    # bestTrain, _ = sp500.prepareDataCrossValidate(trainTensor, bestArg)
+    for ind in range(k):
+        print(f"Starting the {ind+1} validation set")
+        sp500 = SP500AE()
+        startIter = time.perf_counter()
+        currTrain, currValidate = sp500.prepareDataCrossValidate(trainTensor, ind)
+        trainLoader = DataLoader(currTrain, args.batch_size, drop_last=True)
+        lossArr.append(sp500.train(trainLoader, currValidate))
+        endIter = time.perf_counter()
+        print(f"the {ind+1} validation took {(endIter - startIter)/60} mintues")
+    bestArg = np.argmin(np.asarray(lossArr))
+    bestTrain, _ = sp500.prepareDataCrossValidate(trainTensor, bestArg)
     print(f"Starting full train")
     bestModer = SP500AE()
     bestLoss = bestModer.train(DataLoader(trainTensor, args.batch_size, drop_last=True), testTensor)
