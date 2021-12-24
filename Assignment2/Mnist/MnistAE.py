@@ -14,9 +14,9 @@ import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
 parser.add_argument('--batch_size', type=int, default=64, help="batch size")
-parser.add_argument('--epochs', type=int, default=20, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=100, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=40, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=128, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=28, help="size of an input")
@@ -77,10 +77,9 @@ class MnistAE():
 
     def train(self, saveNet):
         trainLoss = []
-        self.AE.to(self.device)
+        NN = self.AE.to(self.device)
+        mse = nn.MSELoss()
         print("Starting Train")
-        if saveNet:
-            print("Will save net!")
 
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch + 1}")
@@ -88,11 +87,10 @@ class MnistAE():
             for ind, (img, label) in enumerate(self.trainData):
                 print(
                     f"this is iteration number {ind + 1}/{len(self.trainData)} for epoch number {epoch + 1}/{args.epochs}")
-                currX = img.squeeze()
+                currX = img.squeeze().to(self.device)
                 self.optimizer.zero_grad()
-                currX.to(self.device)
-                output = self.AE.forward(currX)
-                loss = nn.MSELoss().forward(output, currX)
+                output = NN.forward(currX)
+                loss = mse.forward(output, currX)
                 loss.backward()
                 self.optimizer.step()
                 currLoss += loss.item()
@@ -172,7 +170,7 @@ class MnistAE():
         return trainLoss, accuracy
 
     def reconstruct(self, data):
-        return self.AE.to(self.device)(data.type(torch.FloatTensor))
+        return self.AE.to(self.device)(data.type(torch.FloatTensor).to(self.device))
 
     def reconstructClass(self, data, useRows):
         return self.AEC.to(self.device)(data.type(torch.FloatTensor).to(self.device)) if useRows else self.pixel_AEC.to(self.device)(
@@ -193,7 +191,7 @@ class MnistAE():
             reconed = reconed / 0.3081 + 0.1307
             figure = figure / 0.3081 + 0.1307
             axarr[0, i].imshow(figure, cmap='gray')
-            axarr[1, i].imshow(reconed.detach().squeeze().numpy(), cmap='gray')
+            axarr[1, i].imshow(reconed.detach().squeeze().cpu().numpy(), cmap='gray')
         plt.suptitle("Origin vs Reconstructed images")
         plt.show()
 
@@ -222,7 +220,7 @@ class MnistAE():
         trainLoss, accuracy = self.trainClassification(useRows, saveNet)
 
         plt.figure()
-        plt.title("Classification Loss")
+        plt.title("Total Loss")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.plot(np.arange(self.epochs), trainLoss)
@@ -298,5 +296,5 @@ class MnistAE():
 
 
 saveNet = False
-# MnistAE().plotClassification(useRows=True, savePlt=False)
+MnistAE().plotClassification(useRows=True, savePlt=False)
 MnistAE().plotNN()
