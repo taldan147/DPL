@@ -322,7 +322,7 @@ class SP500AE():
         oneStepPred = fromNormal(oneStepPred.detach().numpy())
 
 
-        plt.title("One Step Predicted vs Multi Predicted")
+        plt.title("One Step Predicted vs Original")
         plt.plot(dates, test_y[0].flatten(), label="original")  # full dates
         plt.plot(dates, oneStepPred[0].flatten(), label="Predicted")  # full dates
         # plt.plot(multiPredKeeper[0].detach().numpy(), label="Multi Predicted", color="tomato")
