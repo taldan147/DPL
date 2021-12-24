@@ -452,6 +452,6 @@ def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
 
 # crossValidate(parseData(),2, savePlt=True)
 # plotGoogleAmazon()
-# SP500AE().runPrediction(False)
-SP500AE().runPredictionMultiStep(False)
+SP500AE().runPrediction(False)
+# SP500AE().runPredictionMultiStep(False)
 #TODO: change date to time!

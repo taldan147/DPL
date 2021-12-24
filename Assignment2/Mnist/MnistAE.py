@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
 parser.add_argument('--batch_size', type=int, default=64, help="batch size")
 parser.add_argument('--epochs', type=int, default=20, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=400, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=40, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=28, help="size of an input")
@@ -189,6 +189,7 @@ class MnistAE():
         for i in range(3):
             figure, labels = dataIter.next()
             figure = figure.squeeze()
+            figure = figure / 0.3081 + 0.1307
             axarr[0, i].imshow(figure, cmap='gray')
             reconed = self.reconstruct(torch.unsqueeze(figure, 0))
             axarr[1, i].imshow(reconed.detach().squeeze().numpy(), cmap='gray')
@@ -198,6 +199,8 @@ class MnistAE():
 
         plt.title("Loss")
         plt.plot(np.arange(self.epochs), loss)
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss Value')
         if savePlt:
             plt.savefig(f"Plots/LossNoClass.png")
         plt.show()
@@ -294,5 +297,5 @@ class MnistAE():
 
 
 saveNet = False
-MnistAE().plotClassification(useRows=True, savePlt=False)
-# MnistAE().plotNN()
+# MnistAE().plotClassification(useRows=True, savePlt=False)
+MnistAE().plotNN()

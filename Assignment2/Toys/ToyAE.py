@@ -11,7 +11,7 @@ import time
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=200, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=100, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")
@@ -44,6 +44,7 @@ class ToyAE():
         validateLoss = []
         model = self.AE.to(self.device)
         mse = nn.MSELoss().to(self.device)
+        scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, 100, 0.5)
         for epoch in range(self.epochs):
             print(f"this is epoch number {epoch}")
             currLoss = 0
@@ -60,6 +61,7 @@ class ToyAE():
                     torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_clip)
                 self.optimizer.step()
                 currLoss += loss.item()
+            scheduler.step()
             avgLoss = currLoss / (math.floor(len(self.trainData)/self.batchs))
             validateData = self.validateData.to(self.device)
             currLoss = mse.forward(model(validateData), validateData)
@@ -135,8 +137,8 @@ def grid_search():
     print(f'Parameters loss: {params_loss_keeper}')
     ToyAE(trainData, validateData, testData, best_params['lr'], best_params['grad_clip'], best_params['hs_size']).plotNN(savePlt=False)
 
-grid_search()
+# grid_search()
 lr = 0.01
 hs_size = 40
 grad_clip = 1
-# ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).plotNN(savePlt=False)
+ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).plotNN(savePlt=False)
