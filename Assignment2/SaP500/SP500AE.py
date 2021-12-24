@@ -17,7 +17,7 @@ from matplotlib.dates import DateFormatter
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=8, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=30, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=40, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
@@ -219,21 +219,7 @@ class SP500AE():
             print(f"Finished training. Not saving net")
 
 
-    # def testPredict(self, dataLoader, savePlt=False):
-    #     predKeeper = []
-    #     loss = []
-    #     model = self.AEPred.to(self.device)
-    #     mse = nn.MSELoss().to(self.device)
-    #     interval = dataLoader.shape[1] - math.floor(dataLoader.shape[1]/2)
-    #     for i in range(math.floor(dataLoader.shape[1]/2)):
-    #         currX = dataLoader[:, i: i+interval].to(self.device)
-    #         output, predict = model(currX)
-    #         currX.detach()
-    #         predKeeper.append(predict[:, -1])
-    #         currLoss = mse.forward(input=predict[:,-1], target=dataLoader[:, i+interval].squeeze().to(self.device))
-    #         loss.append(currLoss.item())
-    #         currLoss.detach().cpu()
-    #     return predKeeper, np.mean(np.asarray(loss))
+
 
 
 
@@ -297,30 +283,48 @@ class SP500AE():
         plt.show()
 
     def plotPred(self, totalLoss, reconLoss, predLoss, savePlt=False):
-        self.plotLoss(totalLoss, "Total Loss", savePlt)
-        self.plotLoss(reconLoss, "Reconstruction Loss", savePlt)
-        self.plotLoss(predLoss, "Prediction Loss", savePlt)
+        # self.plotLoss(totalLoss, "Total Loss", savePlt)
+        # self.plotLoss(reconLoss, "Reconstruction Loss", savePlt)
+        # self.plotLoss(predLoss, "Prediction Loss", savePlt)
+        plt.figure()
+        plt.plot(reconLoss, label='reconstructed loss')
+        plt.plot(predLoss, label='prediction loss')
+        plt.xlabel('epochs')
+        plt.ylabel('loss')
+        plt.title('Reconstruction Loss vs Prediction Loss')
+        plt.legend()
+        plt.show()
 
     def runPrediction(self, savePlt=False):
         startTime = time.perf_counter()
 
         data, test, dates = splitDataByName(parseData())
         self.trainPredict(DataLoader(data, args.batch_size, drop_last=True), test, False)
+        testToPredict = torch.flatten(test, 0,1).unsqueeze(2)[:,: -1].to(self.device)
+        test_y = torch.flatten(test, 0,1).unsqueeze(2)[:,1:].to(self.device).view((test.shape[0], test.shape[1], test.shape[2]-1))
+        _, oneStepPred = self.AEPred(testToPredict.to(self.device))
+        oneStepPred = oneStepPred.unsqueeze(2).view((test.shape[0], test.shape[1], test.shape[2]-1))
         # multiPredKeeper, multiLoss = self.testPredict(test)
-        _, oneStepPred = self.AEPred(torch.flatten(test, 0,1).unsqueeze(2).to(self.device))
-        halfMark = test.shape[1] - math.floor(test.shape[1]/2)
 
-        oneStepPred = oneStepPred[:, halfMark:]
+        # oneStepPred = oneStepPred[:, halfMark:]
 
         # multiPredKeeper = torch.stack(multiPredKeeper, dim=1)
+        dates = dates.reshape(53,19)[:-1].flatten()
 
         endTime = time.perf_counter()
 
-        print(f"overall time is {(endTime - startTime) / 60} minutes")
+        print(f"overall time is {(endTime - startTime) / 4} minutes")
 
-        plt.figure()
+        fig, axes = plt.subplots()
+        axes.xaxis.set_major_locator(MaxNLocator(4))
+        plt.xticks(rotation=20, ha='right')
+        test_y = fromNormal(test_y.numpy())
+        oneStepPred = fromNormal(oneStepPred.detach().numpy())
+
+
         plt.title("One Step Predicted vs Multi Predicted")
-        plt.plot(oneStepPred[0].detach().numpy(), label="Reconstructed", color="blue")
+        plt.plot(dates, test_y[0].flatten(), label="original")  # full dates
+        plt.plot(dates, oneStepPred[0].flatten(), label="Predicted")  # full dates
         # plt.plot(multiPredKeeper[0].detach().numpy(), label="Multi Predicted", color="tomato")
         plt.xlabel("Time")
         plt.ylabel("Closing Rate")
@@ -328,6 +332,69 @@ class SP500AE():
         if savePlt:
             plt.savefig(f"Plots/multiPredict.png")
         plt.show()
+
+
+    def runPredictionMultiStep(self, savePlt=False):
+        startTime = time.perf_counter()
+
+        data, test, dates = splitDataByName(parseData())
+        test = test[:,:-1]  # cut the last subsequent to have even sequence
+        self.trainPredict(DataLoader(data, args.batch_size, drop_last=True), test, False)
+        testToPredict = torch.flatten(test, 0,1).unsqueeze(2)[:,: -1].to(self.device)
+        test_y = torch.flatten(test, 0,1).unsqueeze(2)[:,1:].to(self.device).view((test.shape[0], test.shape[1], test.shape[2]-1))
+        _, oneStepPred = self.AEPred(testToPredict.to(self.device))
+        oneStepPred = oneStepPred.unsqueeze(2).view((test.shape[0], test.shape[1], test.shape[2]-1))
+
+        firstHalfTest = test[:, :int(test.shape[1]/2)]
+        secondHalfTest = test[:, int(test.shape[1]/2):]
+        multiPredict = self.multiPredict(firstHalfTest)
+
+        # last shapes to show in graphs
+        multiPredict = multiPredict[:,:,  1:]
+        oneStepPred = oneStepPred[:, int(test.shape[1]/2):]
+        testToPlot = test[:, int(test.shape[1]/2):, 1:]
+
+
+
+        # dates = dates.reshape(53,19)[:-1].flatten()
+
+        endTime = time.perf_counter()
+
+        print(f"overall time is {(endTime - startTime) / 4} minutes")
+
+        # fig, axes = plt.subplots()
+        # axes.xaxis.set_major_locator(MaxNLocator(4))
+        # plt.xticks(rotation=20, ha='right')
+        multiPredict = fromNormal(multiPredict.detach().numpy())
+        oneStepPred = fromNormal(oneStepPred.detach().numpy())
+        testToPlot = fromNormal(testToPlot.detach().numpy())
+
+        for i in range(10):
+            plt.title("One Step Predicted vs Multi Predicted")
+            plt.plot(testToPlot[i].flatten(), label="original")  # full dates
+            plt.plot(oneStepPred[i].flatten(), label="Predicted")  # full dates
+            plt.plot(multiPredict[i].flatten(), label="Multi Predict")  # full dates
+            plt.xlabel("Time")
+            plt.ylabel("Closing Rate")
+            plt.legend()
+            if savePlt:
+                plt.savefig(f"Plots/multiPredict.png")
+            plt.show()
+
+    def multiPredict(self, testData, savePlt=False):
+        predKeeper = torch.empty(testData.shape[0],1)
+        model = self.AEPred.to(self.device)
+        currInput = testData
+        numOfIter = int(testData.shape[1] * testData.shape[2])
+        for i in range(numOfIter):
+            print(f'multi predict iteration:{i+1}/{numOfIter}')
+            output, predict = model(torch.flatten(currInput,0,1).unsqueeze(2).to(self.device))
+            predict = predict.view(testData.shape[0] , testData.shape[1], -1).flatten(1,2)[:, -1]
+            currInput = currInput.flatten(1, 2)[:, 1:]  # cut first
+            currInput = torch.cat((currInput, predict.unsqueeze(1)), 1).view(testData.shape[0],testData.shape[1], -1)  # add predicted
+            predKeeper = torch.cat((predKeeper, predict.unsqueeze(1)), dim=1)
+        predKeeper = predKeeper[:, 1:]  # remove the empty tensor from the initial
+        return predKeeper.view(testData.shape)
 
 
 
@@ -384,6 +451,7 @@ def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
 
 
 # crossValidate(parseData(),2, savePlt=True)
-plotGoogleAmazon()
+# plotGoogleAmazon()
 # SP500AE().runPrediction(False)
+SP500AE().runPredictionMultiStep(False)
 #TODO: change date to time!
