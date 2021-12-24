@@ -189,9 +189,10 @@ class MnistAE():
         for i in range(3):
             figure, labels = dataIter.next()
             figure = figure.squeeze()
+            reconed = self.reconstruct(torch.unsqueeze(figure, 0))
+            reconed = reconed / 0.3081 + 0.1307
             figure = figure / 0.3081 + 0.1307
             axarr[0, i].imshow(figure, cmap='gray')
-            reconed = self.reconstruct(torch.unsqueeze(figure, 0))
             axarr[1, i].imshow(reconed.detach().squeeze().numpy(), cmap='gray')
         plt.suptitle("Origin vs Reconstructed images")
         plt.show()
