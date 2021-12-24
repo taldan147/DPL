@@ -17,9 +17,9 @@ from matplotlib.dates import DateFormatter
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=8, help="batch size")
-parser.add_argument('--epochs', type=int, default=1, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=200, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
-parser.add_argument('--hidden_size', type=int, default=40, help="lstm hidden size")
+parser.add_argument('--hidden_size', type=int, default=64, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=3, help="num of layers")
 parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
 parser.add_argument('--input_size', type=int, default=1, help="size of an input")
@@ -248,10 +248,10 @@ class SP500AE():
     def plotCrossVal(self, testData, dates,savePlt=False):
 
         testData = fromNormal(testData)
-        reconTest = self.AE(torch.flatten(torch.FloatTensor(testData), 0,1).unsqueeze(2).to(self.device)).view(testData.shape)
-        reconTest = fromNormal(reconTest.detach().numpy())
+        reconTest = self.AE.to(self.device)(torch.flatten(torch.FloatTensor(testData), 0,1).unsqueeze(2).to(self.device)).view(testData.shape)
+        reconTest = fromNormal(reconTest.detach().cpu().numpy())
 
-        for i in range(3):
+        for i in range(10):
             stock = testData[i]
             stock = stock.squeeze()
             fig, axes = plt.subplots()
@@ -265,6 +265,7 @@ class SP500AE():
             plt.plot(dates, reconTest[i].flatten(), label='reconstructed')
             plt.xlabel("Date")
             plt.ylabel("Closing Rate")
+            plt.legend()
             if savePlt:
                 plt.savefig(f"Plots/ReconstructCrossVal.png")
             plt.show()
@@ -368,9 +369,9 @@ class SP500AE():
 
         for i in range(10):
             plt.title("One Step Predicted vs Multi Predicted")
-            plt.plot(testToPlot[i].flatten(), label="original")  # full dates
-            plt.plot(oneStepPred[i].flatten(), label="Predicted")  # full dates
-            plt.plot(multiPredict[i].flatten(), label="Multi Predict")  # full dates
+            plt.plot(testToPlot[i+10].flatten(), label="original")  # full dates
+            plt.plot(oneStepPred[i+10].flatten(), label="Predicted")  # full dates
+            plt.plot(multiPredict[i+10].flatten(), label="Multi Predict")  # full dates
             plt.xlabel("Time")
             plt.ylabel("Closing Rate")
             plt.legend()
@@ -447,7 +448,7 @@ def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
     # SP500AE().plotCrossVal(DataLoader(testTensor, 1, drop_last=True),dates,  savePlt)
 
 
-crossValidate(parseData(),2, savePlt=True)
+crossValidate(parseData(),4, savePlt=True)
 # plotGoogleAmazon()
 # SP500AE().runPrediction(False)
 # SP500AE().runPredictionMultiStep(False)
