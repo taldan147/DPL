@@ -26,6 +26,7 @@ parser.add_argument('--input_size', type=int, default=1, help="size of an input"
 parser.add_argument('--dropout', type=float, default=0, help="dropout ratio")
 parser.add_argument('--seq_size', type=int, default=53, help="size of a seq")
 parser.add_argument('--output_size', type=int, default=1, help="size of the output")
+parser.add_argument('--grad_clip', type=int, default=1, help="size of the output")
 args = parser.parse_args()
 
 dataPath = f"{os.getcwd()}/SP 500 Stock Prices 2014-2017.csv"
@@ -123,6 +124,7 @@ class SP500AE():
         super(SP500AE, self).__init__()
         self.epochs = args.epochs
         self.batchs = args.batch_size
+        self.grad_clip = args.grad_clip
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.AE = AE.LSTMAE(args.input_size, args.num_of_layers, args.seq_size, args.hidden_size, args.dropout,
                             args.output_size)
@@ -138,6 +140,7 @@ class SP500AE():
     def train(self, trainLoader, validateData, saveNet=False):
         model = self.AE.to(self.device)
         mse = nn.MSELoss().to(self.device)
+        scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, 50, 0.5)
         print("Starting Train")
         if saveNet:
             print("Will save net!")
@@ -157,9 +160,12 @@ class SP500AE():
                 loss.backward()
                 self.optimizer.step()
                 currLoss.append(loss.item())
+                if self.grad_clip is not None:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_clip)
                 # if ind % 100 == 0:
                 #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
+            scheduler.step()
             # self.plotLoss(lossArr, "Stocks Temp Loss")
 
         if saveNet:
