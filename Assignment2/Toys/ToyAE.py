@@ -40,17 +40,18 @@ class ToyAE():
         print(f"using {self.device} as computing unit")
 
     def train(self):
+        print("Started Train!")
         trainLoss = []
         validateLoss = []
         model = self.AE.to(self.device)
         mse = nn.MSELoss().to(self.device)
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, 100, 0.5)
         for epoch in range(self.epochs):
-            print(f"this is epoch number {epoch}")
+            # print(f"this is epoch number {epoch}")
             currLoss = 0
             perm = np.random.permutation(len(self.trainData))
             for k in range(math.floor(len(self.trainData)/self.batchs)):
-                print(f"this is iteration number {k+1}/{math.floor(len(self.trainData)/self.batchs)} for epoch number {epoch+1}/{self.epochs}")
+                # print(f"this is iteration number {k+1}/{math.floor(len(self.trainData)/self.batchs)} for epoch number {epoch+1}/{self.epochs}")
                 indx = perm[k * self.batchs:(k + 1) * self.batchs]
                 currX = self.trainData[indx].to(self.device)
                 self.optimizer.zero_grad()
@@ -132,13 +133,15 @@ def grid_search():
                     best_loss = curr_loss
                     best_params = {'lr': lr, 'hs_size': hs_size, 'grad_clip': grad_clip}
                 params_loss_keeper.update({f'lr: {lr}, hs_size: {hs_size}, grad_clip: {grad_clip}:': curr_loss})
+                print(f"Start!\n\nlr = {lr}\nhs_size = {hs_size}\ngrad_clip = {grad_clip}")
+                print(f"their loss is {curr_loss}\n\nEnd\n")
     print(f'Best parameters found: {best_params}')
     print(f'Best Validation Loss: {best_loss}')
     print(f'Parameters loss: {params_loss_keeper}')
     ToyAE(trainData, validateData, testData, best_params['lr'], best_params['grad_clip'], best_params['hs_size']).plotNN(savePlt=False)
 
-# grid_search()
+grid_search()
 lr = 0.01
 hs_size = 40
 grad_clip = 1
-ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).plotNN(savePlt=False)
+# ToyAE(trainData, validateData, testData, lr, grad_clip, hs_size).plotNN(savePlt=False)

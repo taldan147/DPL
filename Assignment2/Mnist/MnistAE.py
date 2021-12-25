@@ -14,7 +14,7 @@ import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description="Arguments of MNIST AE")
 parser.add_argument('--batch_size', type=int, default=64, help="batch size")
-parser.add_argument('--epochs', type=int, default=50, help="number of epochs")
+parser.add_argument('--epochs', type=int, default=200, help="number of epochs")
 parser.add_argument('--optimizer', default='Adam', type=str, help="optimizer to use")
 parser.add_argument('--hidden_size', type=int, default=128, help="lstm hidden size")
 parser.add_argument('--num_of_layers', type=int, default=1, help="num of layers")

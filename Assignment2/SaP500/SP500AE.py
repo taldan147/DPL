@@ -165,7 +165,7 @@ class SP500AE():
                 # if ind % 100 == 0:
                 #     self.plotSignal(currX[0], f"Reconstructed\nBatch {ind + 1}/{len(trainLoader)} for epoch number {epoch + 1}/{args.epochs}")
             lossArr.append(np.mean(np.asarray(currLoss)))
-            scheduler.step()
+            # scheduler.step()
             # self.plotLoss(lossArr, "Stocks Temp Loss")
 
         if saveNet:
@@ -458,4 +458,3 @@ crossValidate(parseData(),4, savePlt=True)
 # plotGoogleAmazon()
 # SP500AE().runPrediction(False)
 # SP500AE().runPredictionMultiStep(False)
-#TODO: change date to time!
