@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import time
 import pandas as pd
 from matplotlib.ticker import MaxNLocator
-from matplotlib.dates import DateFormatter
 
 parser = argparse.ArgumentParser(description="Arguments of Toy AE")
 parser.add_argument('--batch_size', type=int, default=8, help="batch size")
