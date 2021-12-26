@@ -41,22 +41,6 @@ def parseData():
     return stocks.sort_values(by='date')
 
     #splits the raw data by symbol and keep the close
-def splitData(stocks, numGroups):
-    stocks = stocks[["symbol", "close"]]
-    stocksGroups = stocks.groupby('symbol')
-    stocksNames = stocksGroups['symbol'].apply(lambda x: pd.Series(x.values)).unstack()
-    trainData = stocksGroups['close'].apply(lambda x: pd.Series(x.values)).unstack()
-    trainData.interpolate(inplace=True)
-    splittedStocksValues = np.row_stack(np.asarray(np.array_split(trainData.values, 19, axis=1)))
-    trainInd, testInd = createRandomIndices(len(splittedStocksValues), 0.8)
-    trainList = splittedStocksValues[trainInd]
-    testList = splittedStocksValues[testInd]
-    trainTensor = toNormal(torch.FloatTensor(trainList))
-    testTensor = toNormal(torch.FloatTensor(testList))
-    trainTensor = np.array_split(trainTensor, numGroups)
-
-    return trainTensor, testTensor
-
 
 def splitDataByName(stocks):
     stocks = stocks[["symbol", "close", "date"]]
@@ -86,8 +70,6 @@ def toNormal(data, isTestData):
     global meansTest
     global stdsTest
 
-    # data -= np.min(data,2, keepdims=True)
-    # data /= np.max(data,2, keepdims=True)
     for i in range(len(data)):
         currMean = []
         currStd = []
@@ -425,7 +407,7 @@ def plotGoogleAmazon(savePlt=False):
         plt.savefig(f"Plots/GOOGLAMZN.png")
     plt.show()
 
-def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
+def crossValidate(data, k, savePlt=False):
     trainTensor, testTensor, dates = splitDataByName(data)
     trainTensor = np.array_split(trainTensor, k)
     lossArr = []
@@ -450,7 +432,6 @@ def crossValidate(data, k, savePlt=False): #TODO make cross-validation work
     print(f"training on the chosen part took {(endTime - endIter)/60} minutes")
     print(f"overall time is {(endTime - startTime)/60} minutes")
     bestModer.plotCrossVal(testTensor,dates,  savePlt)
-    # SP500AE().plotCrossVal(DataLoader(testTensor, 1, drop_last=True),dates,  savePlt)
 
 
 crossValidate(parseData(),4, savePlt=True)
